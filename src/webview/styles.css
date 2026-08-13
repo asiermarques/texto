@@ -1,0 +1,263 @@
+/*
+ * Writing surface (US-004, US-005, US-016).
+ *
+ * Three palettes, chosen by `[data-theme]` on <html> (set server-side in
+ * html.ts, before first paint — see the comment there and RISK-005): Claro
+ * (default, DEC-005), Oscuro, and "vscode", which is the original US-005
+ * behaviour — colours come from VSCode's own theme variables
+ * (`--vscode-editor-*`), injected into every webview before first paint, so
+ * it follows the active VSCode theme live and never flashes unstyled.
+ * Everything below reads a `--editor-*` custom property, never
+ * `--vscode-editor-*` directly, so the same rules serve all three. Claro and
+ * Oscuro are paper and ink, not pure white and pure black.
+ * Typography is the editor's own and does not read `editor.fontFamily` /
+ * `editor.fontSize` (US-004).
+ */
+
+:root {
+  --editor-background: var(--vscode-editor-background);
+  --editor-foreground: var(--vscode-editor-foreground);
+  --editor-cursor: var(--vscode-editorCursor-foreground);
+  --editor-selection: var(--vscode-editor-selectionBackground);
+  --editor-blockquote-rail: var(--vscode-textBlockQuote-border, var(--vscode-editor-foreground));
+  --editor-scene-break: var(--vscode-editor-foreground);
+  --editor-scrollbar-thumb: var(--vscode-scrollbarSlider-background);
+  --editor-scrollbar-thumb-hover: var(--vscode-scrollbarSlider-hoverBackground);
+  /*
+   * The bug this whole setting exists to fix: 0.35 over VSCode's own dark
+   * background reads as gone, not dimmed (diagnosis 2 in the plan). Left at
+   * the original value here, for "vscode" — Claro and Oscuro below recalibrate
+   * it, and are what DEC-005 makes the default.
+   */
+  --editor-dim-opacity: 0.35;
+}
+
+:root[data-theme='claro'] {
+  --editor-background: #f7f2e9;
+  --editor-foreground: #2b2620;
+  --editor-cursor: #2b2620;
+  --editor-selection: #dcd0b4;
+  --editor-blockquote-rail: #b3a483;
+  --editor-scene-break: #8c7c58;
+  --editor-scrollbar-thumb: rgba(43, 38, 32, 0.25);
+  --editor-scrollbar-thumb-hover: rgba(43, 38, 32, 0.4);
+  --editor-dim-opacity: 0.45;
+}
+
+:root[data-theme='oscuro'] {
+  --editor-background: #1e1c18;
+  --editor-foreground: #e9e3d6;
+  --editor-cursor: #e9e3d6;
+  --editor-selection: #423c2f;
+  --editor-blockquote-rail: #8c8168;
+  --editor-scene-break: #a89b7c;
+  --editor-scrollbar-thumb: rgba(233, 227, 214, 0.2);
+  --editor-scrollbar-thumb-hover: rgba(233, 227, 214, 0.35);
+  --editor-dim-opacity: 0.55;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  display: flex;
+  justify-content: center;
+  background: var(--editor-background);
+}
+
+#editor-root {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 42rem;
+  padding: 4rem 1.5rem;
+  /*
+   * F-003: a generous bottom cushion, about half a screen, so that the last
+   * line of a long Chapter can rise to the middle of the window instead of
+   * being written against the bottom edge.
+   */
+  padding-bottom: 50vh;
+}
+
+.cm-editor {
+  height: 100%;
+  font-family: 'Literata Variable', Georgia, 'Times New Roman', serif;
+  font-size: 1.125rem;
+  line-height: 1.7;
+  color: var(--editor-foreground);
+  background: transparent;
+  /*
+   * F-005: typographic detail Literata offers and the editor was not using —
+   * ligatures and oldstyle figures (not tabular ones: they read better in
+   * running prose), plus the smoothing and the rendering mode any serif face
+   * for screen appreciates.
+   */
+  font-variant-ligatures: common-ligatures;
+  font-variant-numeric: oldstyle-nums;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/*
+ * US-012 (DEC-001): no focus ring. This rule is the first line of defence,
+ * but it is not the one that wins: the winner is
+ * src/webview/noFocusRingTheme.ts (an EditorView.theme, injected after this
+ * stylesheet and with higher precedence than CodeMirror's base theme). Kept
+ * here anyway, scoped to the webview and covering :focus-visible, in case the
+ * theme is no longer needed some day.
+ */
+#editor-root,
+#editor-root *,
+#editor-root *:focus,
+#editor-root *:focus-visible {
+  outline: none;
+}
+
+.cm-scroller {
+  font-family: inherit;
+  line-height: inherit;
+}
+
+/* F-008: the scrollbar in keeping with the palette, not VSCode's. */
+.cm-scroller::-webkit-scrollbar {
+  width: 12px;
+}
+.cm-scroller::-webkit-scrollbar-track {
+  background: transparent;
+}
+.cm-scroller::-webkit-scrollbar-thumb {
+  background: var(--editor-scrollbar-thumb);
+  border-radius: 6px;
+}
+.cm-scroller::-webkit-scrollbar-thumb:hover {
+  background: var(--editor-scrollbar-thumb-hover);
+}
+
+.cm-content {
+  padding: 0;
+  caret-color: var(--editor-cursor);
+}
+
+.cm-selectionBackground {
+  background: var(--editor-selection) !important;
+}
+
+/*
+ * Live preview (US-006 to US-008): the FR-002 subset composed as prose. The
+ * classes are applied by src/webview/livePreviewPlugin.ts out of
+ * src/domain/livePreview.ts; only the look is decided here.
+ */
+
+.cm-live-strong {
+  font-weight: 700;
+}
+
+.cm-live-emphasis {
+  font-style: italic;
+}
+
+/*
+ * F-002: air of its own, coherent with the body's leading (line-height:
+ * 1.7). In rem, not in em, so that the air does not depend on each heading
+ * level's own size (a small h5 needs the same breathing room as a large h1).
+ * Depends on US-013: the composition class is always applied, so this air
+ * does not appear and disappear with the cursor.
+ *
+ * Padding and not margin, on purpose: these classes are applied by a line
+ * decoration, so they land on the `.cm-line`, and CodeMirror measures each
+ * line's height from the element's rectangle —which does not include the
+ * margin— for its height map. With margin, the real document sits lower than
+ * CodeMirror believes it does, and `posAtCoords` shifts the click: you have
+ * to click above the text to hit it. Padding does count towards the
+ * measurement.
+ */
+.cm-live-heading-1,
+.cm-live-heading-2,
+.cm-live-heading-3,
+.cm-live-heading-4,
+.cm-live-heading-5,
+.cm-live-heading-6 {
+  font-weight: 700;
+  line-height: 1.3;
+  padding-top: 2rem;
+  padding-bottom: 0.75rem;
+}
+
+.cm-live-heading-1 {
+  font-size: 1.6em;
+}
+.cm-live-heading-2 {
+  font-size: 1.4em;
+}
+.cm-live-heading-3 {
+  font-size: 1.2em;
+}
+.cm-live-heading-4,
+.cm-live-heading-5,
+.cm-live-heading-6 {
+  font-size: 1.05em;
+}
+
+.cm-live-blockquote {
+  border-left: 3px solid var(--editor-blockquote-rail);
+  padding-left: 0.9em;
+  font-style: italic;
+  opacity: 0.85;
+}
+
+/*
+ * US-013: composition (the indent) and marker substitute (the "•" bullet) are
+ * two separate classes on purpose. The first does not depend on the cursor —if
+ * it did, the item's indent would jump when entering to edit it—; the second
+ * only applies while the real dash is hidden, or both would show at once
+ * ("- • primero").
+ */
+.cm-live-list-bullet {
+  padding-left: 1.4em;
+  text-indent: -1.4em;
+}
+.cm-live-list-bullet-mark::before {
+  content: '•';
+  display: inline-block;
+  width: 1.4em;
+}
+
+.cm-live-list-number {
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Same as the lists: the composition (reserved height and centring) stays
+ * applied always, so that the line does not shift when the real marker
+ * ("---") replaces the composed one ("⁂"); the "⁂" is the marker substitute
+ * and only appears while the real one is hidden.
+ *
+ * Padding and not margin for the same reason as the headings: it is a line
+ * decoration, and the margin does not count towards the height CodeMirror
+ * measures.
+ */
+.cm-live-scene-break {
+  min-height: 1.4em;
+  text-align: center;
+  padding: 1.2em 0;
+}
+.cm-live-scene-break-mark::before {
+  content: '⁂';
+  color: var(--editor-scene-break);
+  opacity: 0.6;
+}
+
+/*
+ * Focus mode (US-009, US-010, US-016): dimming by opacity only — it never
+ * shifts or reflows the text (the story's BR). The opacity comes from
+ * --editor-dim-opacity, calibrated per theme (diagnosis 2 in the plan: a
+ * fixed 0.35 is illegible on a dark background). The transition is purely
+ * cosmetic, not part of any acceptance criterion.
+ */
+.cm-live-dim {
+  opacity: var(--editor-dim-opacity);
+  transition: opacity 0.15s ease-out;
+}
