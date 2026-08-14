@@ -1,4 +1,4 @@
-import type { EditorTheme } from './preferences';
+import type { EditorTheme, TextAlignment } from './preferences';
 
 export interface WebviewLike {
   readonly cspSource: string;
@@ -10,21 +10,29 @@ export interface HtmlAssetUris {
   readonly fontCssUri: string;
 }
 
+/** The subset of `WritingEditorPreferences` that has to be visible before first paint. */
+export interface InitialPresentation {
+  readonly theme: EditorTheme;
+  readonly textSize: number;
+  readonly alignment: TextAlignment;
+}
+
 /**
  * The webview's HTML shell. Kept as a pure function of its inputs (no
  * `vscode` import) so it can be unit-tested without an extension host —
  * `webview` only needs to look like a `vscode.Webview` (`cspSource`).
  *
- * `theme` is stamped on `<html>` itself rather than sent later over
- * `postMessage` (US-016, RISK-005): the palette in `styles.css` is scoped by
- * `[data-theme]`, and the stylesheet already has to load before the script
- * (US-005's no-flash guarantee) — putting the theme in the same HTML string
- * means the right palette is there on first paint, same guarantee, one more
- * attribute.
+ * `theme`, `textSize` and `alignment` are stamped on `<html>` itself rather
+ * than sent later over `postMessage` (US-016/US-018/US-019, RISK-005): the
+ * palette, measure and alignment in `styles.css` are all scoped off `<html>`
+ * attributes/custom properties, and the stylesheet already has to load
+ * before the script (US-005's no-flash guarantee) — putting these in the
+ * same HTML string means the right composition is there on first paint,
+ * same guarantee, extended to the two settings that shipped after the theme.
  */
-export function getHtmlForWebview(webview: WebviewLike, assets: HtmlAssetUris, nonce: string, theme: EditorTheme): string {
+export function getHtmlForWebview(webview: WebviewLike, assets: HtmlAssetUris, nonce: string, presentation: InitialPresentation): string {
   return `<!DOCTYPE html>
-<html lang="es" data-theme="${theme}">
+<html lang="es" data-theme="${presentation.theme}" data-align="${presentation.alignment}" style="--editor-font-size:${presentation.textSize}px">
 <head>
   <meta charset="UTF-8" />
   <meta property="csp-nonce" content="${nonce}" />
@@ -34,7 +42,7 @@ export function getHtmlForWebview(webview: WebviewLike, assets: HtmlAssetUris, n
   />
   <link rel="stylesheet" href="${assets.fontCssUri}">
   <link rel="stylesheet" href="${assets.styleUri}">
-  <title>Editor de escritura</title>
+  <title>Writing editor</title>
 </head>
 <body>
   <div id="editor-root"></div>

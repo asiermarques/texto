@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { closeAllEditors, createScratchFile, deleteScratchFile, openInProseEditor, requestSnapshot, setCursor, waitFor } from './support';
+import { closeAllEditors, createScratchFile, deleteScratchFile, openInWritingEditor, requestSnapshot, setCursor, waitFor } from './support';
 
 // US-007: headings, blockquote and lists composed as prose.
 
@@ -14,7 +14,7 @@ suite('US-007: headings, blockquote and lists composed as prose', () => {
 
   test('a heading is composed as a title, with the hash hidden', async () => {
     fileUri = await createScratchFile('## Un título\n\nUn párrafo cualquiera.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
 
     await setCursor(panel, 20); // in the paragraph, outside the heading
     const snapshot = await waitFor(async () => {
@@ -28,7 +28,7 @@ suite('US-007: headings, blockquote and lists composed as prose', () => {
 
   test("placing the cursor on the heading's line reveals the hash, editable", async () => {
     fileUri = await createScratchFile('## Un título\n\nUn párrafo cualquiera.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
 
     await setCursor(panel, 5); // inside "## Un título"
     const snapshot = await waitFor(async () => {
@@ -41,7 +41,7 @@ suite('US-007: headings, blockquote and lists composed as prose', () => {
 
   test('a blockquote is composed distinctly from a normal paragraph, with the marker hidden', async () => {
     fileUri = await createScratchFile('> Una cita memorable.\n\nUn párrafo normal.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
 
     await setCursor(panel, 30); // in the normal paragraph, outside the blockquote
     const snapshot = await waitFor(async () => {
@@ -55,7 +55,7 @@ suite('US-007: headings, blockquote and lists composed as prose', () => {
 
   test("every list item shows its composed bullet and not markdown's dash", async () => {
     fileUri = await createScratchFile('- primero\n- segundo\n- tercero\n\nUn párrafo aparte.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
 
     await setCursor(panel, 35); // in the separate paragraph, off every list line
     const snapshot = await waitFor(async () => {

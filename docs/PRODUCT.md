@@ -8,14 +8,18 @@ using: markdown hidden, readable typography, no distractions. The texts are
 
 ## Who it is for
 
-**One person: the author of this repository.** A single user, who is also a
-developer and already lives in VSCode and git.
+**The Author of this repository, first — and now, deliberately, anyone else
+who wants to write fiction this way (PD-006).** It was built for one person,
+who is also a developer and already lives in VSCode and git; that is still the
+primary design target, and technical vocabulary (git, commits, branches) is
+still not treated as an obstacle to remove.
 
-This is a decision, not a placeholder waiting for a market. There is no
-onboarding, no third-party installation, no accounts, no support, no
-monetisation, no marketplace. Technical vocabulary (git, commits, branches) is
-not an obstacle, and the only measure that counts is whether it actually gets
-used.
+There is still no onboarding flow, no accounts, no support, no monetisation,
+and publishing to a marketplace remains out of scope (see MVP scope, below).
+What changed is narrower: the interface is no longer allowed to assume its
+only reader is the Author, because the Author now intends to share the
+extension itself with other people. The only measure that counts is still
+whether it actually gets used — by the Author or by anyone else.
 
 ## The problem
 
@@ -46,15 +50,34 @@ technical decisions were.
   read it, so no versioning system gets built.
 - **PD-004 — VSCode only.** One environment. No iPad, no browser, no
   standalone desktop app.
-
+- **PD-005 — One Paragraph, one line.** A **Paragraph** is a single line of the
+  markdown file; the **Writing surface** wraps it on screen. Markdown files
+  hard-wrapped by hand at a fixed column are not the shape this editor
+  composes: every source line becomes a block of its own, so justified text
+  cannot straighten a right margin that ends mid-sentence, and the column's
+  measure (US-018) stops meaning anything. *Why:* the same choice iA Writer
+  and Ulysses make — the measure is the editor's to decide, not the file's,
+  and it has to be free to change with the **Text size**. The `.md` stays
+  perfectly standard either way; this is about how a **Work** is written, not
+  about the format.
+- **PD-006 — The extension may be shared beyond the Author.** Superseding the
+  original "one person" framing under "Who it is for": that framing was right
+  while the only user was the Spanish-writing Author, but a Spanish-only
+  interface and Spanish setting identifiers make the extension unusable for
+  anyone else the moment it is shared. *Why:* the Author now intends to share
+  it, so the interface presents itself in Spanish or English, following
+  VSCode's own display language, while the setting identifiers become English
+  like every other key in a `settings.json` (`.workflow/requisites/003-bilingual-interface-english-defaults.md`).
+  This removes the Spanish-only blocker; it does not by itself schedule a
+  marketplace release — see MVP scope, still Out.
 
 ## MVP scope
 
 In: a custom editor for `.md` inside VSCode with live preview; a careful writing
 surface (typography, measure, focus); files in a git repo with history read
 through VSCode; the writing environment configured and versioned next to the
-text; a word count.
+text; a word count; a bilingual interface (Spanish/English, PD-006).
 
-Out: any sync of our own, work structure, AI review, anything aimed at a third
-party.
+Out: any sync of our own, work structure, AI review, publishing to a
+marketplace, onboarding, accounts or support for a third party.
 

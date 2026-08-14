@@ -7,7 +7,7 @@ import type { EditorSnapshot, TestFromWebviewMessage, TestToWebviewMessage } fro
 import type { TextChange } from '../../src/domain/textChange';
 
 const EXTENSION_ID = 'asiermarques.texto';
-export const VIEW_TYPE = 'texto.editorDeEscritura';
+export const VIEW_TYPE = 'texto.editor';
 
 export async function getExtensionApi(): Promise<TextoExtensionApi> {
   const extension = vscode.extensions.getExtension<TextoExtensionApi>(EXTENSION_ID);
@@ -51,10 +51,10 @@ export async function deleteScratchFile(uri: vscode.Uri): Promise<void> {
   await fs.promises.rm(path.dirname(uri.fsPath), { recursive: true, force: true });
 }
 
-export async function openInProseEditor(uri: vscode.Uri): Promise<vscode.WebviewPanel> {
+export async function openInWritingEditor(uri: vscode.Uri): Promise<vscode.WebviewPanel> {
   await vscode.commands.executeCommand('vscode.openWith', uri, VIEW_TYPE);
   const api = await getExtensionApi();
-  const panel = await waitFor(() => api.panelFor(uri), `the Prose editor panel for ${uri.fsPath}`);
+  const panel = await waitFor(() => api.panelFor(uri), `the Writing editor panel for ${uri.fsPath}`);
   // The webview script loads asynchronously; retry the handshake until it
   // has registered its message listener, instead of racing it once.
   await waitFor(

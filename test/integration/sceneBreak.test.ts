@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { closeAllEditors, createScratchFile, deleteScratchFile, moveCursor, openInProseEditor, requestSnapshot, setCursor, waitFor } from './support';
+import { closeAllEditors, createScratchFile, deleteScratchFile, moveCursor, openInWritingEditor, requestSnapshot, setCursor, waitFor } from './support';
 
 // US-008: Scene break.
 
@@ -14,7 +14,7 @@ suite('US-008: scene break', () => {
 
   test("the horizontal rule is composed as a Scene break, not as markdown's characters", async () => {
     fileUri = await createScratchFile('Primera escena.\n\n---\n\nSegunda escena.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
 
     await setCursor(panel, 0); // in the first Scene, outside the break
     const snapshot = await waitFor(async () => {
@@ -29,7 +29,7 @@ suite('US-008: scene break', () => {
 
   test("placing the cursor on the break's line reveals the original syntax, editable", async () => {
     fileUri = await createScratchFile('Primera escena.\n\n---\n\nSegunda escena.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
 
     await setCursor(panel, 18); // on the "---" line
     const snapshot = await waitFor(async () => {
@@ -42,7 +42,7 @@ suite('US-008: scene break', () => {
 
   test('the cursor crosses the Scene break without getting stuck', async () => {
     fileUri = await createScratchFile('Primera escena.\n\n---\n\nSegunda escena.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
 
     // The break spans [17,20). Position 20 (right after it) does not "touch"
     // it, so it stays hidden and atomic there — unlike position 17 (its own
@@ -60,7 +60,7 @@ suite('US-008: scene break', () => {
 
   test('the file keeps the horizontal rule exactly as written, on save', async () => {
     fileUri = await createScratchFile('Primera escena.\n\n---\n\nSegunda escena.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
     await requestSnapshot(panel);
 
     const document = await vscode.workspace.openTextDocument(fileUri);

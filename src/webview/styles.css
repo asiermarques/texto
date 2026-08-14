@@ -2,14 +2,15 @@
  * Writing surface (US-004, US-005, US-016).
  *
  * Three palettes, chosen by `[data-theme]` on <html> (set server-side in
- * html.ts, before first paint — see the comment there and RISK-005): Claro
- * (default, DEC-005), Oscuro, and "vscode", which is the original US-005
+ * html.ts, before first paint — see the comment there and RISK-005): light
+ * (default, DEC-005), dark, and "vscode", which is the original US-005
  * behaviour — colours come from VSCode's own theme variables
  * (`--vscode-editor-*`), injected into every webview before first paint, so
  * it follows the active VSCode theme live and never flashes unstyled.
  * Everything below reads a `--editor-*` custom property, never
- * `--vscode-editor-*` directly, so the same rules serve all three. Claro and
- * Oscuro are paper and ink, not pure white and pure black.
+ * `--vscode-editor-*` directly, so the same rules serve all three. light and
+ * dark are paper and ink, not pure white and pure black. (Values renamed
+ * from `claro`/`oscuro` in US-002 (003).)
  * Typography is the editor's own and does not read `editor.fontFamily` /
  * `editor.fontSize` (US-004).
  */
@@ -24,6 +25,15 @@
   --editor-scrollbar-thumb: var(--vscode-scrollbarSlider-background);
   --editor-scrollbar-thumb-hover: var(--vscode-scrollbarSlider-hoverBackground);
   /*
+   * US-017/US-018: the Author's chosen text size, in px. Set on <html>
+   * itself before first paint (html.ts, RISK-005) and live-updated from
+   * src/webview/main.ts (applyTextSize) — never read from the root's own
+   * font-size, so VSCode's workbench zoom (which scales the root) cannot
+   * change it. The fallback here only covers a webview loaded without that
+   * inline style (never happens in production, cheap to have anyway).
+   */
+  --editor-font-size: 1.125rem;
+  /*
    * The bug this whole setting exists to fix: 0.35 over VSCode's own dark
    * background reads as gone, not dimmed (diagnosis 2 in the plan). Left at
    * the original value here, for "vscode" — Claro and Oscuro below recalibrate
@@ -32,7 +42,7 @@
   --editor-dim-opacity: 0.35;
 }
 
-:root[data-theme='claro'] {
+:root[data-theme='light'] {
   --editor-background: #f7f2e9;
   --editor-foreground: #2b2620;
   --editor-cursor: #2b2620;
@@ -44,7 +54,7 @@
   --editor-dim-opacity: 0.45;
 }
 
-:root[data-theme='oscuro'] {
+:root[data-theme='dark'] {
   --editor-background: #1e1c18;
   --editor-foreground: #e9e3d6;
   --editor-cursor: #e9e3d6;
@@ -72,7 +82,16 @@ body {
 #editor-root {
   box-sizing: border-box;
   width: 100%;
-  max-width: 42rem;
+  /*
+   * US-018 (F-004): the measure is set here on the element's OWN font-size
+   * (below), not on the document root's — `rem` would anchor it to a value
+   * the text size setting never touches, so agrandar el texto encogía la
+   * medida de ~68 a ~45 caracteres por línea. In `em` against this
+   * font-size, the column grows with the text and the characters per line
+   * stay put. ~68ch of Literata prose at the factory size.
+   */
+  font-size: var(--editor-font-size);
+  max-width: 38em;
   padding: 4rem 1.5rem;
   /*
    * F-003: a generous bottom cushion, about half a screen, so that the last
@@ -85,7 +104,8 @@ body {
 .cm-editor {
   height: 100%;
   font-family: 'Literata Variable', Georgia, 'Times New Roman', serif;
-  font-size: 1.125rem;
+  /* US-017: inherits #editor-root's font-size (same --editor-font-size). */
+  font-size: 1em;
   line-height: 1.7;
   color: var(--editor-foreground);
   background: transparent;
@@ -139,6 +159,32 @@ body {
 .cm-content {
   padding: 0;
   caret-color: var(--editor-cursor);
+}
+
+/*
+ * US-019 (DEC-006, amended): alignment is [data-align] on <html>, set before
+ * first paint (html.ts, RISK-005) and live-updated from applyAlignment in
+ * main.ts — left needs no rule (the default), right and justified do.
+ * Justified's hyphenation travels with it, never alone — without it,
+ * justifying Spanish prose (long words) opens rivers of white space instead
+ * of fixing the ragged edge. `hyphens: auto` needs `lang` on the document,
+ * already declared as `lang="es"` (html.ts). Values renamed from
+ * `izquierda`/`derecha`/`justificado` in US-002 (003).
+ */
+:root[data-align='right'] .cm-content {
+  text-align: right;
+}
+
+:root[data-align='justified'] .cm-content {
+  text-align: justify;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+
+/* The Scene break's mark stays centred regardless of alignment. */
+:root[data-align='right'] .cm-live-scene-break,
+:root[data-align='justified'] .cm-live-scene-break {
+  text-align: center;
 }
 
 .cm-selectionBackground {

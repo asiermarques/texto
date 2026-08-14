@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { closeAllEditors, createScratchFile, deleteScratchFile, openInProseEditor, requestSnapshot, setCursor, waitFor } from './support';
+import { closeAllEditors, createScratchFile, deleteScratchFile, openInWritingEditor, requestSnapshot, setCursor, waitFor } from './support';
 
 // US-013: the composition does not move when the cursor moves (DEC-003).
 //
@@ -21,7 +21,7 @@ suite('US-013: the composition does not move when the cursor moves', () => {
 
   test('a heading keeps its composition class with the cursor inside', async () => {
     fileUri = await createScratchFile('## Un título\n\nUn párrafo cualquiera.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
 
     await setCursor(panel, 20); // in the paragraph, outside the heading
     await waitFor(async () => ((await requestSnapshot(panel)).liveClasses.includes('cm-live-heading-2') ? true : undefined), 'the heading to be composed');
@@ -37,7 +37,7 @@ suite('US-013: the composition does not move when the cursor moves', () => {
 
   test('a blockquote keeps its rail with the cursor inside', async () => {
     fileUri = await createScratchFile('> Una cita.\n\nUn párrafo.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
 
     await setCursor(panel, 20); // in the paragraph, outside the blockquote
     await waitFor(async () => ((await requestSnapshot(panel)).liveClasses.includes('cm-live-blockquote') ? true : undefined), 'the blockquote to be composed');
@@ -53,7 +53,7 @@ suite('US-013: the composition does not move when the cursor moves', () => {
 
   test('a list item keeps its indent with the cursor inside, and does not show the marker and the bullet at once', async () => {
     fileUri = await createScratchFile('- único elemento\n\nUn párrafo.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
 
     await setCursor(panel, 25); // in the paragraph, outside the list
     const away = await waitFor(async () => {
@@ -74,7 +74,7 @@ suite('US-013: the composition does not move when the cursor moves', () => {
 
   test('a Scene break keeps its place with the cursor inside, and does not show the dashes and the "⁂" at once', async () => {
     fileUri = await createScratchFile('Primera escena.\n\n---\n\nSegunda escena.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
 
     await setCursor(panel, 0); // in the first Scene, outside the break
     const away = await waitFor(async () => {

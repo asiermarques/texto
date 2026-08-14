@@ -10,7 +10,7 @@ A VSCode extension that registers its own editor for `.md` files.
 
 ```
 VSCode extension
-  ├─ CustomTextEditorProvider   registers the Prose editor for *.md
+  ├─ CustomTextEditorProvider   registers the Writing editor for *.md
   ├─ webview                    the Writing surface (CodeMirror 6)
   └─ bridge                     keeps webview and TextDocument in sync
 
@@ -59,14 +59,18 @@ installer.
   - Webview assets (stylesheet, bundled font) are copied to `dist/media/` in the
     same build step.
 - **Folders, layered by purity** rather than by slice (the project is a single
-  vertical slice, the Prose editor):
+  vertical slice, the Writing editor):
   - `src/domain/` — pure logic, never importing `vscode` as a value (types only,
     erased at compile time): `EditOriginTracker` (the echo loop), the shape of
     the webview↔extension message protocol, the webview HTML template, the CSP
-    nonce, live preview and focus mode analysis.
+    nonce, live preview and focus mode analysis, word counting
+    (`wordCount.ts`), and the settings-toolbar button shapes
+    (`editorToolbar.ts`).
   - `src/infrastructure/` — the only place that calls the real `vscode` API:
-    `ProseEditorProvider`, which registers the `CustomTextEditorProvider` and
-    applies `WorkspaceEdit`s.
+    `WritingEditorProvider`, which registers the `CustomTextEditorProvider` and
+    applies `WorkspaceEdit`s; `wordCountStatusBar.ts` and `editorToolbar.ts`,
+    thin wrappers around `vscode.StatusBarItem` built from
+    `domain/editorToolbar.ts`'s pure button specs.
   - `src/webview/` — the entry point running inside the webview: CodeMirror 6,
     the Writing surface, the theme.
   - `src/extension.ts` — activation; exposes a minimal API (`panelFor(uri)`)
@@ -77,7 +81,7 @@ installer.
   - **Unit (vitest)** for `src/domain/`: the only logic with a pure shape, and
     therefore the only code that deserves real unit tests.
   - **Integration (`@vscode/test-electron` + Mocha)** for everything else: they
-    boot a real VSCode, load the actual extension and exercise the Prose editor
+    boot a real VSCode, load the actual extension and exercise the Writing editor
     end to end — open, type, save, undo, external changes, typography, theme.
     This is the project's e2e suite; there is no browser or backend of our own,
     only one host, VSCode.
@@ -96,10 +100,41 @@ installer.
 - **Typography: Literata Variable**, bundled via `@fontsource-variable/literata`
   (SIL Open Font License) and served locally from `dist/media` — no network at
   runtime.
-- **Editor theme: three values, Claro by default (US-016, DEC-005, revising
-  US-005/OQ-002).** The Prose editor no longer always follows VSCode's theme.
-  `texto.tema` is `claro` (default) | `oscuro` | `vscode`; the first two are a
-  fixed palette of the Prose editor's own (paper, not pure white; ink, not
+- **Interface language: VSCode's own display language, no localisation layer
+  of our own (US-004, requirement 003).** One source of truth (BR-001): the
+  Writing editor never reads a `texto.*` setting for this, and there is no
+  language picker anywhere in the interface. English is the fallback (BR-002)
+  — for any display language that is not Spanish, and for any string with no
+  Spanish translation. Identifiers (setting keys, enum values, the
+  `viewType`) are never translated (BR-003); only the text describing them
+  changes. Two bundle kinds, because the mechanisms VSCode offers are
+  genuinely different:
+  - **Manifest strings** (`package.json`'s `contributes`: Settings UI
+    descriptions, command titles, the Writing editor's `displayName`) are
+    `%key%` placeholders resolved by VSCode itself, before the extension
+    host starts — `package.nls.json` is the English fallback bundle,
+    `package.nls.es.json` the Spanish one. Nothing in `src/` participates;
+    this is a static VSCode mechanism, like `contributes.configuration`
+    itself.
+  - **Runtime strings** (the status bar toolbar, US-005; the Word count,
+    US-006) are resolved at call time through `vscode.l10n.t`, since they
+    depend on state the manifest cannot see (the current preference, the
+    word count). See the "settings toolbar" and "Word count" bullets below
+    for the seam that keeps this out of `src/domain/` (ASM-002).
+  - **Verification (RISK-002):** the integration host launches with
+    `--disable-extensions`, which would also disable a Spanish language
+    pack, so there is no way to boot the test host in Spanish and assert its
+    rendering end to end. The English half is asserted the normal way (the
+    host's own, stable language); the Spanish half is asserted with unit
+    tests over the bundle files themselves — a key-parity check
+    (`test/unit/packageNls.test.ts`) so a string added in English without
+    its Spanish counterpart fails the build rather than silently falling
+    back to English at runtime.
+- **Editor theme: three values, light by default (US-016, DEC-005, revising
+  US-005/OQ-002).** The Writing editor no longer always follows VSCode's theme.
+  `texto.theme` is `light` (default) | `dark` | `vscode` (renamed from
+  `claro`/`oscuro` in US-002, requirement 003); the first two are a
+  fixed palette of the Writing editor's own (paper, not pure white; ink, not
   pure black), and only `vscode` keeps the original US-005 behaviour —
   background, text colour, cursor and selection taken from the CSS variables
   VSCode injects into every webview (`--vscode-editor-background` and
@@ -109,9 +144,9 @@ installer.
   `--editor-blockquote-rail`, `--editor-scene-break`, `--editor-dim-opacity`,
   `--editor-scrollbar-thumb`), never `--vscode-editor-*` directly, so the same
   rules serve all three — `:root` defines the `vscode`-following values,
-  `:root[data-theme='claro']` and `:root[data-theme='oscuro']` override them.
+  `:root[data-theme='light']` and `:root[data-theme='dark']` override them.
   **No colour flash on open:** `data-theme` is stamped on `<html>` inside the
-  HTML string `ProseEditorProvider` builds (`src/domain/html.ts`), resolved
+  HTML string `WritingEditorProvider` builds (`src/domain/html.ts`), resolved
   from the preference *before* the webview's first paint, not sent later over
   `postMessage` — the same "no flash" guarantee US-005 had for the `vscode`
   value now covers all three (RISK-005). Modo foco's dimming opacity is
@@ -148,19 +183,157 @@ installer.
     at once once the marker is revealed.
 - **Preferences are VSCode settings, applied live (US-015).** Every Editor de
   escritura preference is declared under `contributes.configuration` in
-  `package.json`, prefixed `texto.` (e.g. `texto.modoFoco`), so it shows up in
-  VSCode's own Settings UI and can be versioned in a **Writing space**'s
+  `package.json`, prefixed `texto.` (e.g. `texto.focusMode`, `texto.theme`,
+  `texto.textSize`, `texto.alignment` — English identifiers since US-002,
+  requirement 003), so it shows up in VSCode's own
+  Settings UI and can be versioned in a **Writing space**'s
   `.vscode/settings.json` (AD-005). The shape and defaults are a pure type in
-  `src/domain/preferences.ts` (`ProseEditorPreferences`, `readPreferences`);
+  `src/domain/preferences.ts` (`WritingEditorPreferences`, `readPreferences`);
   `src/infrastructure/preferences.ts` is the only place that reads or writes
   the real `vscode.workspace.getConfiguration('texto', resource)` — resolved
   per `resource` (a document's `vscode.Uri`) so a **Writing space**'s local
   settings win over the user's global ones, the way VSCode resolves any
-  setting. `ProseEditorProvider` subscribes once, in `register()`, to
+  setting. `WritingEditorProvider` subscribes once, in `register()`, to
   `workspace.onDidChangeConfiguration` and reposts the affected panels'
   current preferences over the existing message protocol — one mechanism for
-  both origins of a change, the toggle command and the Autor editing
-  `settings.json` directly. No webview reload either way.
+  every origin of a change: a command, the webview's own keymap (US-017), the
+  settings menu (US-021), or the Author editing `settings.json` directly. No
+  webview reload either way. Text size and alignment write at Global scope,
+  the same as Focus mode — see that bullet below for why one preference
+  being global doesn't stop a **Writing space** from overriding it locally on
+  read.
+- **Text size travels as a CSS custom property, not a class (US-017/US-018).**
+  `--editor-font-size` is stamped on `<html>` in the initial HTML (same
+  RISK-005 treatment as the theme) and live-updated from
+  `src/webview/main.ts` (`applyTextSize`). `#editor-root`'s own `font-size`
+  reads that property, and its `max-width` (the column's measure) is
+  expressed in `em` against it, not in `rem` against the document root
+  (F-004): growing the text grows the column in the same proportion, so the
+  characters-per-line the measure was tuned for don't drift. The webview
+  can't write `texto.textSize` itself (no access to
+  `vscode.workspace.getConfiguration`) — its keymap (`Mod-=`/`Mod--`/`Mod-0`,
+  plus `Mod-Alt-=`/`Mod-Alt--` in case the platform's zoom accelerator wins
+  the first pair, RISK-006) posts a `changeTextSize` message and the
+  extension does the write, exactly like the `texto.increaseTextSize` command.
+- **Alignment reuses the theme's `[data-attribute]` pattern (US-019, DEC-006
+  amended).** `texto.alignment` (renamed from `texto.alineacion` in US-002,
+  requirement 003) sets `data-align` on `<html>` — `left` needs no rule (the
+  default), `right` sets `text-align: right`, and `justified` turns on
+  `hyphens: auto` alongside `text-align: justify`, the two as the same CSS
+  rule on purpose: unhyphenated justification in Spanish opens rivers of
+  white space between long words, so that value never offers one without the
+  other. `right` was added after
+  DEC-006 originally shipped with two values, on Author feedback about the
+  settings toolbar (US-021) — see the implementation-plan note next to
+  DEC-006. The **Scene break**'s mark keeps its own `text-align: center` for
+  both non-default values, overriding the inherited value.
+- **Word count is prose, not markdown (US-020, F-006).**
+  `src/domain/wordCount.ts` walks the same `@codemirror/lang-markdown` parse
+  tree `livePreview.ts` does, but the other way round: instead of deciding
+  what to hide, it collects the spans structural marker nodes occupy
+  (`HeaderMark`, `QuoteMark`, `ListMark`, `EmphasisMark`, `HorizontalRule`, …)
+  and counts words in what's left after splicing those spans out — spliced,
+  not replaced by a separator, because a mark can sit directly against real
+  text with no space of its own (`*cursiva*.`) and inserting one would
+  fabricate a word boundary that was never there. The total is computed
+  host-side, straight from `document.getText()`, on every change; the
+  selection count needs a message from the webview (`selectionWordCount`),
+  because the selection only exists inside CodeMirror. `formatWordCountStatus`
+  takes a `WordCountStrings` bag already resolved for the display language
+  (US-006, requirement 003) instead of hard-coding the phrase, the same
+  purity split as the toolbar; `src/infrastructure/wordCountStatusBar.ts`
+  calls `vscode.l10n.t`. English does not inflect "selected" the way Spanish
+  agrees it with *palabra* (seleccionada/seleccionadas), so the singular and
+  plural selection suffix share one English source string — resolved as two
+  different runtime-bundle entries via `l10n.t`'s `comment` option, which
+  VSCode appends to the lookup key (`message + '/' + comment.join('')`)
+  precisely to disambiguate cases like this one.
+- **The status bar's visibility is governed by panel view state, not
+  `onDidChangeActiveTextEditor` (US-020, RISK-007).** That event never fires
+  for a `CustomTextEditor` — VSCode's own editor-focus tracking doesn't see
+  one. `WritingEditorProvider` instead tracks one `activeUri` from every open
+  panel's own `webviewPanel.onDidChangeViewState`, checking `active` at
+  `resolveCustomTextEditor` time too (a freshly opened panel is usually
+  already active, and view state only fires on a later *change*). Every
+  other Prose-editor feature that needs "the current Chapter" from outside a
+  webview's own message handler — the text size commands, the settings
+  toolbar — reads through the same `activeUri`, not
+  `vscode.window.activeTextEditor`.
+- **Raw markdown view is Live preview's own Compartment, not a second one
+  (US-022).** `src/webview/main.ts` wraps `livePreviewPlugin` in a
+  `Compartment` the same way Focus mode already wrapped `focusModePlugin`;
+  toggling "ver markdown" reconfigures both compartments together
+  (`applyComposition`), turning Live preview off and forcing Focus mode's
+  dimming off regardless of `texto.focusMode`, so the raw syntax is never
+  half-dimmed. It is panel state, not a preference: a freshly opened panel
+  is always composed, and the toggle (`texto.toggleRawMarkdown`) is routed
+  only to the active panel (the same `activeUri` RISK-007 introduced) — there
+  is nothing to persist, and nowhere it would be persisted to.
+- **The settings toolbar is a view over the settings, never a second store
+  (US-021).** Originally a QuickPick menu behind the word count item;
+  redesigned on Author feedback into one `vscode.StatusBarItem` per setting
+  value, next to the word count — a 3-way choice (Theme, Alignment) shows one
+  button per value with `$(check)` marking the active one, a `+`/`-` pair
+  plus the size itself for text size, and a single toggle button each for
+  **Focus mode** and **Raw markdown**. `src/domain/editorToolbar.ts` builds
+  every button's text and tooltip as pure functions of the current
+  `WritingEditorPreferences`, the raw-view state, and a `ToolbarStrings` bag
+  already resolved for the display language (US-005, requirement 003) — the
+  module stays free of `vscode` as a value (ASM-002), so it cannot call
+  `vscode.l10n.t` itself. `src/infrastructure/editorToolbar.ts`
+  (`EditorToolbar`) is the only place that creates the real status bar items
+  and the only one that calls `vscode.l10n.t`, resolving `ToolbarStrings`
+  fresh on every `refresh()` (cheap, and simpler than caching something that
+  cannot change without a window reload — EDGE-002) — shown and hidden
+  alongside `WordCountStatusBar` under the same `activeUri` (RISK-007) and
+  refreshed whenever `onPreferencesChanged` or a `rawMarkdownChanged` message
+  fires for the active panel. Each button's `.command` is either one of the
+  commands earlier stories already registered (`texto.increaseTextSize`,
+  `texto.toggleFocusMode`, `texto.toggleRawMarkdown`, …) or a small new
+  generic pair, `texto.setTheme`/`texto.setAlignment`, invoked with the
+  button's own value as a `vscode.Command.arguments` entry and validated
+  against `isEditorTheme`/`isTextAlignment` before writing — not declared in
+  `contributes.commands` (an argument-only command has no palette audience).
+  No new source of truth either way: every button writes through the exact
+  same setter functions the earlier stories' commands and the webview keymap
+  already use.
+- **A preference is written to the scope it is read from, not always to
+  Global.** Every `texto.*` setter used to update `ConfigurationTarget.Global`
+  unconditionally, which is right for an Author who configures nothing else —
+  and wrong for the **Writing space** the README tells them to build: VSCode
+  resolves a folder's `.vscode/settings.json` *over* Global, so inside a Work
+  that pins `texto.theme` or `texto.focusMode` the write landed in a scope the
+  Chapter never read back and the toolbar button did nothing at all (Author
+  report). `writePreference` (`src/infrastructure/preferences.ts`) now
+  inspects the setting for the Chapter being edited and updates the most
+  specific scope that already defines it — the pure decision is
+  `resolveWriteScope` in `domain/preferences.ts` — falling back to Global,
+  which keeps the original behaviour everywhere nothing is pinned. Two
+  corollaries: the four settings are declared `"scope": "resource"` in
+  `package.json` (a `window`-scoped setting cannot be written per folder at
+  all, and VSCode rejects the update outright), and the toggles that compute
+  their next value from the current one (`texto.toggleFocusMode`, the text
+  size steps) read through the same resource, or they would toggle away from
+  a value the Author is not looking at.
+- **The toolbar hides on leaving the Chapter, not on losing focus.** A
+  `WebviewPanel` goes `active: false` the moment anything outside the iframe
+  takes focus — including the toolbar's own status bar buttons — so the
+  original `else` branch of `onDidChangeViewState` hid the whole toolbar under
+  the very click meant to use it, and left `activeUri` undefined for the
+  command that click was about to run (`texto.toggleRawMarkdown` routes by
+  it). Only `!visible` clears the active panel now; `lastActiveUri` keeps the
+  Chapter a preference write belongs to even across that blur.
+- **Opening the right editor from the context menu delegates to
+  `vscode.openWith` (US-023/US-024).** `texto.openWithTexto` and
+  `texto.openAsMarkdown` (contributed to `explorer/context` and
+  `editor/title/context`, `when: resourceExtname == .md`) both resolve a
+  resource — the menu's argument when present, otherwise whichever markdown
+  file is in view in either editor kind — and hand it to
+  `vscode.openWith(uri, viewType)`, `texto.editor` (renamed from
+  `texto.editorDeEscritura` in US-003, requirement 003) or `'default'`
+  respectively. `customEditors`' `priority` stays `"option"` (US-011): these
+  commands are the shortcut for everything the default association doesn't
+  cover, not a change to what it resolves to.
 - **Focus mode: same pattern, unit = top-level block.**
   `src/domain/focusMode.ts` dims every top-level block (paragraph, heading,
   quote, list, **Scene break**) the selection does not touch;
@@ -168,7 +341,7 @@ installer.
   opacity class — it never shifts text. The switch lives in a CodeMirror
   `Compartment`, so toggling reconfigures the view in place without recreating
   the `EditorState` or reloading the webview. The preference is the
-  `texto.modoFoco` setting (US-015) rather than `context.globalState`: no
+  `texto.focusMode` setting (US-015) rather than `context.globalState`: no
   in-memory cache is needed, because `vscode.workspace.getConfiguration` is
   synchronous and always current within the extension host — the staleness
   that justified a cache with `globalState` (a read triggered from a

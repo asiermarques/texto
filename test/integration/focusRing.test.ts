@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { closeAllEditors, createScratchFile, deleteScratchFile, openInProseEditor, requestSnapshot } from './support';
+import { closeAllEditors, createScratchFile, deleteScratchFile, openInWritingEditor, requestSnapshot } from './support';
 
 // US-012: no focus ring on the Writing surface.
 
@@ -14,7 +14,7 @@ suite('US-012: no focus ring on the Writing surface', () => {
 
   test('neither the editor root nor the focused node draws a focus ring', async () => {
     fileUri = await createScratchFile('Un párrafo cualquiera.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
 
     const snapshot = await requestSnapshot(panel);
 
@@ -31,7 +31,7 @@ suite('US-012: no focus ring on the Writing surface', () => {
 
   test('a list with several items leaves no stray boxes around the bullets', async () => {
     fileUri = await createScratchFile('- primero\n- segundo\n- tercero');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
 
     const snapshot = await requestSnapshot(panel);
 
@@ -40,7 +40,7 @@ suite('US-012: no focus ring on the Writing surface', () => {
 
   test('losing focus does not change the look: still no ring', async () => {
     fileUri = await createScratchFile('Un párrafo cualquiera.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
 
     // Move the focus out of the webview, to the command palette, and close
     // it — inside the test host that is the reliable way to blur the panel

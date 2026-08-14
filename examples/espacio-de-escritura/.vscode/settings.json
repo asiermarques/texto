@@ -1,0 +1,16 @@
+{
+  "workbench.editorAssociations": {
+    "*.md": "texto.editor"
+  },
+
+  "breadcrumbs.enabled": false,
+  "editor.minimap.enabled": false,
+  "editor.lineNumbers": "off",
+  "editor.rulers": [],
+  "editor.glyphMargin": false,
+
+  "texto.theme": "light",
+  "texto.focusMode": true,
+  "texto.textSize": 18,
+  "texto.alignment": "left"
+}

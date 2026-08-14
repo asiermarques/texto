@@ -1,7 +1,7 @@
 import * as assert from 'assert';
 import * as fs from 'fs';
 import * as vscode from 'vscode';
-import { closeAllEditors, createScratchFile, deleteScratchFile, openInProseEditor, requestSnapshot, simulateTyping, waitFor, waitForText } from './support';
+import { closeAllEditors, createScratchFile, deleteScratchFile, openInWritingEditor, requestSnapshot, simulateTyping, waitFor, waitForText } from './support';
 
 // US-003: external changes reflected in the open editor.
 
@@ -30,7 +30,7 @@ suite('US-003: external changes reflected in the open editor', () => {
   });
 
   test('a change that does not come from the webview is reflected without duplicating or losing text', async () => {
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
 
     await applyExternalEdit(fileUri, new vscode.Range(new vscode.Position(0, 0), new vscode.Position(0, 4)), 'Primero.');
 
@@ -42,7 +42,7 @@ suite('US-003: external changes reflected in the open editor', () => {
   });
 
   test('a git checkout (change on disk + reload) leaves the Chapter exactly as it is in that Draft', async () => {
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
     await requestSnapshot(panel); // ensure handshake is settled before mutating on disk
 
     await fs.promises.writeFile(fileUri.fsPath, 'Contenido de otro Borrador.', 'utf8');
@@ -56,7 +56,7 @@ suite('US-003: external changes reflected in the open editor', () => {
   });
 
   test('a far-away external change does not move the cursor from where the writing was happening', async () => {
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
     // Place the cursor by typing at the very end — CM6 puts the selection
     // right after what was just inserted.
     await simulateTyping(panel, [{ from: 15, to: 15, insert: ' Cuatro.' }]);

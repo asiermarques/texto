@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { closeAllEditors, createScratchFile, deleteScratchFile, openInProseEditor, requestSnapshot } from './support';
+import { closeAllEditors, createScratchFile, deleteScratchFile, openInWritingEditor, requestSnapshot } from './support';
 
 // US-004: the editor's own typography and measure.
 
@@ -19,7 +19,7 @@ suite("US-004: the editor's own typography and measure", () => {
   });
 
   test("the Chapter is composed with the editor's typography, not with VSCode's global font", async () => {
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
     const snapshot = await requestSnapshot(panel);
 
     assert.ok(snapshot.style.fontFamily.includes('Literata'), `expected Literata, got: ${snapshot.style.fontFamily}`);
@@ -27,7 +27,7 @@ suite("US-004: the editor's own typography and measure", () => {
   });
 
   test("changing editor.fontFamily or editor.fontSize in the settings does not affect the Chapter's composition", async () => {
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
     const before = await requestSnapshot(panel);
 
     const config = vscode.workspace.getConfiguration('editor');
@@ -43,7 +43,7 @@ suite("US-004: the editor's own typography and measure", () => {
   });
 
   test('the writing column does not fill the whole width: it has a bounded measure', async () => {
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
     const snapshot = await requestSnapshot(panel);
 
     assert.notStrictEqual(snapshot.style.rootMaxWidth, 'none');
@@ -52,7 +52,7 @@ suite("US-004: the editor's own typography and measure", () => {
   });
 
   test('the column stays centred', async () => {
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
     const snapshot = await requestSnapshot(panel);
 
     assert.strictEqual(snapshot.style.bodyJustifyContent, 'center');

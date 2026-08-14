@@ -38,4 +38,33 @@ describe('computeDimmedRanges — US-009: dimming the text that does not hold th
 
     expect(dimmed).toEqual([{ from: 11, to: 29 }]);
   });
+
+  it('keeps the block in focus when the cursor rests at the end of its last sentence', () => {
+    const dimmed = computeDimmedRanges(twoParagraphs, cursorAt(71)); // end of the second paragraph
+
+    expect(dimmed).toEqual([{ from: 0, to: 35 }]);
+  });
+
+  it('keeps the block in focus when the cursor rests at the end of a paragraph mid-document', () => {
+    const dimmed = computeDimmedRanges(twoParagraphs, cursorAt(35)); // end of the first paragraph
+
+    expect(dimmed).toEqual([{ from: 37, to: 71 }]);
+  });
+
+  it('focuses the preceding block when the cursor sits on the blank line that follows it', () => {
+    const dimmed = computeDimmedRanges(twoParagraphs, cursorAt(36)); // the blank line between both
+
+    expect(dimmed).toEqual([{ from: 37, to: 71 }]);
+  });
+
+  it('focuses the following block when the cursor sits on a blank line closer to it', () => {
+    const text = 'Uno.\n\n\n\nDos.'; // 'Uno.' 0–4, 'Dos.' 8–12
+    const dimmed = computeDimmedRanges(text, cursorAt(7));
+
+    expect(dimmed).toEqual([{ from: 0, to: 4 }]);
+  });
+
+  it('dims nothing when the work is empty', () => {
+    expect(computeDimmedRanges('', cursorAt(0))).toEqual([]);
+  });
 });

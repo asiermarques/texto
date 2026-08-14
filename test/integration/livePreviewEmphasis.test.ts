@@ -6,7 +6,7 @@ import {
   deleteScratchFile,
   deleteBackward,
   moveCursor,
-  openInProseEditor,
+  openInWritingEditor,
   requestSnapshot,
   setCursor,
   waitFor,
@@ -31,7 +31,7 @@ suite("US-006: emphasis hidden, revealed on the cursor's line", () => {
 
   test('bold is composed with the asterisks hidden when the cursor is not on it', async () => {
     fileUri = await createScratchFile('Un párrafo con **negrita** de verdad.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
 
     await setCursor(panel, 0);
     const snapshot = await waitFor(async () => {
@@ -45,7 +45,7 @@ suite("US-006: emphasis hidden, revealed on the cursor's line", () => {
 
   test('italic is composed with the markers hidden when the cursor is not on it', async () => {
     fileUri = await createScratchFile('Un *susurro* apenas audible.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
 
     await setCursor(panel, 0);
     const snapshot = await waitFor(async () => {
@@ -58,7 +58,7 @@ suite("US-006: emphasis hidden, revealed on the cursor's line", () => {
 
   test('moving the cursor inside the bold reveals the asterisks, and leaving hides them again', async () => {
     fileUri = await createScratchFile('Un párrafo con **negrita** de verdad.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
 
     await setCursor(panel, 20); // inside "negrita" (content in [17,24))
     const onIt = await waitFor(async () => {
@@ -77,7 +77,7 @@ suite("US-006: emphasis hidden, revealed on the cursor's line", () => {
 
   test('the cursor does not get stuck inside a hidden bold marker when moving with the arrow keys', async () => {
     fileUri = await createScratchFile('Texto con **fuerte** aquí.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
     await setCursor(panel, 9); // right before the opening marker, in [10,12)
     await waitFor(async () => ((await requestSnapshot(panel)).liveClasses.includes('cm-live-strong') ? true : undefined), 'the bold to be hidden');
 
@@ -92,7 +92,7 @@ suite("US-006: emphasis hidden, revealed on the cursor's line", () => {
 
   test('deleting backwards from the end of the bold removes the hidden marker as one unit', async () => {
     fileUri = await createScratchFile('Texto con **fuerte** aquí.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
     await setCursor(panel, 20); // right after the closing marker "**", in [18,20)
     await waitFor(async () => ((await requestSnapshot(panel)).liveClasses.includes('cm-live-strong') ? true : undefined), 'the bold to be hidden');
 
@@ -103,7 +103,7 @@ suite("US-006: emphasis hidden, revealed on the cursor's line", () => {
 
   test('a pasted link or table is shown as plain text and preserved on save', async () => {
     fileUri = await createScratchFile('Ver [este enlace](https://example.com) y seguir.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
 
     const snapshot = await requestSnapshot(panel);
     assert.ok(snapshot.renderedText.includes('[este enlace](https://example.com)'));

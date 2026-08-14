@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { closeAllEditors, createScratchFile, deleteScratchFile, getExtensionApi, openInProseEditor, requestSnapshot, setCursor, waitFor } from './support';
+import { closeAllEditors, createScratchFile, deleteScratchFile, getExtensionApi, openInWritingEditor, requestSnapshot, setCursor, waitFor } from './support';
 
 // US-010: turning Focus mode on and off.
 
@@ -28,7 +28,7 @@ suite('US-010: turning Focus mode on and off', () => {
 
   test('the toggle command turns Focus mode off: the whole Chapter goes to full opacity', async () => {
     fileUri = await createScratchFile('Primer párrafo con varias palabras.\n\nSegundo párrafo también con texto.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
     await setCursor(panel, 50); // second paragraph, so the first one starts dimmed
     await waitFor(async () => ((await requestSnapshot(panel)).dimmedText.length > 0 ? true : undefined), 'the first paragraph to be dimmed');
 
@@ -43,7 +43,7 @@ suite('US-010: turning Focus mode on and off', () => {
 
   test('toggling again brings the dimming back, following the cursor', async () => {
     fileUri = await createScratchFile('Primer párrafo con varias palabras.\n\nSegundo párrafo también con texto.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
     await setCursor(panel, 50);
     await waitFor(async () => ((await requestSnapshot(panel)).dimmedText.length > 0 ? true : undefined), 'it to start dimmed');
 
@@ -61,15 +61,15 @@ suite('US-010: turning Focus mode on and off', () => {
 
   test('turning Focus mode off and opening another Chapter leaves it off there too', async () => {
     fileUri = await createScratchFile('Primer párrafo.\n\nSegundo párrafo.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
     await setCursor(panel, 20);
     await waitFor(async () => ((await requestSnapshot(panel)).dimmedText.length > 0 ? true : undefined), 'it to start dimmed');
     await vscode.commands.executeCommand(TOGGLE_COMMAND);
     await waitFor(async () => ((await requestSnapshot(panel)).dimmedText.length === 0 ? true : undefined), 'it to turn off');
 
     secondFileUri = await createScratchFile('Otro párrafo distinto.\n\nY uno más.');
-    const secondPanel = await openInProseEditor(secondFileUri);
-    // openInProseEditor's handshake only confirms *a* response, which can
+    const secondPanel = await openInWritingEditor(secondFileUri);
+    // openInWritingEditor's handshake only confirms *a* response, which can
     // race the 'init' message itself — wait for the real content to have
     // landed before trusting anything else about this snapshot.
     await waitFor(async () => {
@@ -92,7 +92,7 @@ suite('US-010: turning Focus mode on and off', () => {
     await vscode.commands.executeCommand(TOGGLE_COMMAND);
     assert.strictEqual(api.isFocusModeEnabled(), false);
 
-    // Since US-015, Focus mode is the `texto.modoFoco` setting
+    // Since US-015, Focus mode is the `texto.focusMode` setting
     // (ConfigurationTarget.Global) instead of `context.globalState`; it is
     // VSCode's own settings storage that persists this across restarts, so
     // checking the value is still there after the update/get cycle is the

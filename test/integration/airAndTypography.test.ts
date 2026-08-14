@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { closeAllEditors, createScratchFile, deleteScratchFile, openInProseEditor, requestSnapshot, setCursor, waitFor } from './support';
+import { closeAllEditors, createScratchFile, deleteScratchFile, openInWritingEditor, requestSnapshot, setCursor, waitFor } from './support';
 
 // US-014: air and typographic detail.
 
@@ -14,7 +14,7 @@ suite('US-014: air and typographic detail', () => {
 
   test('there is more vertical space before a heading than between two consecutive paragraphs', async () => {
     fileUri = await createScratchFile('Primer párrafo.\n\nSegundo párrafo.\n\n## Un título\n\nTercer párrafo.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
     // Live preview composes the heading after the first paint, so measure
     // only once the composition class it carries the air on is applied.
     const snapshot = await waitFor(async () => {
@@ -49,7 +49,7 @@ suite('US-014: air and typographic detail', () => {
 
   test("the heading's margin does not change when the cursor enters its line (depends on US-013)", async () => {
     fileUri = await createScratchFile('Un párrafo.\n\n## Un título\n\nOtro párrafo.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
 
     // Same as above: compare against the *composed* heading, or this
     // measures the plain line and passes or fails on timing alone.
@@ -70,7 +70,7 @@ suite('US-014: air and typographic detail', () => {
 
   test('the writing column has a generous bottom cushion, about half a screen', async () => {
     fileUri = await createScratchFile('Un párrafo cualquiera.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
     const snapshot = await requestSnapshot(panel);
 
     const paddingBottomPx = parseFloat(snapshot.style.rootPaddingBottom);
@@ -79,7 +79,7 @@ suite('US-014: air and typographic detail', () => {
 
   test("the composition uses the font's ligatures and figures, smoothing and text-rendering", async () => {
     fileUri = await createScratchFile('Un párrafo cualquiera.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
     const snapshot = await requestSnapshot(panel);
 
     assert.notStrictEqual(snapshot.style.fontVariantLigatures, 'none');
@@ -90,7 +90,7 @@ suite('US-014: air and typographic detail', () => {
 
   test('it still keeps the family, size and measure US-004 fixes', async () => {
     fileUri = await createScratchFile('Un párrafo cualquiera.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
     const snapshot = await requestSnapshot(panel);
 
     assert.ok(snapshot.style.fontFamily.includes('Literata'));

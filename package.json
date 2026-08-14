@@ -2,7 +2,7 @@
   "name": "texto",
   "publisher": "asiermarques",
   "displayName": "Texto",
-  "description": "Editor de escritura de prosa markdown, dentro de VSCode.",
+  "description": "A prose writing editor for markdown, inside VSCode.",
   "version": "0.0.1",
   "private": true,
   "license": "MIT",
@@ -14,11 +14,12 @@
   ],
   "activationEvents": [],
   "main": "./dist/extension.js",
+  "l10n": "./l10n",
   "contributes": {
     "customEditors": [
       {
-        "viewType": "texto.editorDeEscritura",
-        "displayName": "Editor de escritura",
+        "viewType": "texto.editor",
+        "displayName": "%writing-editor.displayName%",
         "selector": [
           {
             "filenamePattern": "*.md"
@@ -30,27 +31,99 @@
     "commands": [
       {
         "command": "texto.toggleFocusMode",
-        "title": "Texto: Alternar modo foco"
+        "title": "%command.toggleFocusMode.title%"
+      },
+      {
+        "command": "texto.increaseTextSize",
+        "title": "%command.increaseTextSize.title%"
+      },
+      {
+        "command": "texto.decreaseTextSize",
+        "title": "%command.decreaseTextSize.title%"
+      },
+      {
+        "command": "texto.resetTextSize",
+        "title": "%command.resetTextSize.title%"
+      },
+      {
+        "command": "texto.toggleRawMarkdown",
+        "title": "%command.toggleRawMarkdown.title%"
+      },
+      {
+        "command": "texto.openWithTexto",
+        "title": "%command.openWithTexto.title%"
+      },
+      {
+        "command": "texto.openAsMarkdown",
+        "title": "%command.openAsMarkdown.title%"
       }
     ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "texto.openWithTexto",
+          "when": "resourceExtname == .md",
+          "group": "navigation"
+        },
+        {
+          "command": "texto.openAsMarkdown",
+          "when": "resourceExtname == .md",
+          "group": "navigation"
+        }
+      ],
+      "editor/title/context": [
+        {
+          "command": "texto.openWithTexto",
+          "when": "resourceExtname == .md",
+          "group": "navigation"
+        },
+        {
+          "command": "texto.openAsMarkdown",
+          "when": "resourceExtname == .md",
+          "group": "navigation"
+        }
+      ]
+    },
     "configuration": {
-      "title": "Texto",
+      "title": "%configuration.title%",
       "properties": {
-        "texto.modoFoco": {
+        "texto.focusMode": {
+          "scope": "resource",
           "type": "boolean",
           "default": true,
-          "description": "Atenúa todo el Capítulo salvo el bloque que contiene el cursor."
+          "description": "%configuration.focusMode.description%"
         },
-        "texto.tema": {
+        "texto.theme": {
+          "scope": "resource",
           "type": "string",
-          "enum": ["claro", "oscuro", "vscode"],
+          "enum": ["light", "dark", "vscode"],
           "enumDescriptions": [
-            "Fondo de papel, tinta oscura. Ajeno al tema de VSCode.",
-            "Fondo oscuro, tinta clara. Ajeno al tema de VSCode.",
-            "Sigue el tema activo de VSCode, como en versiones anteriores."
+            "%configuration.theme.enumDescriptions.light%",
+            "%configuration.theme.enumDescriptions.dark%",
+            "%configuration.theme.enumDescriptions.vscode%"
           ],
-          "default": "claro",
-          "description": "Tema del Editor de escritura."
+          "default": "light",
+          "description": "%configuration.theme.description%"
+        },
+        "texto.textSize": {
+          "scope": "resource",
+          "type": "number",
+          "minimum": 14,
+          "maximum": 28,
+          "default": 18,
+          "description": "%configuration.textSize.description%"
+        },
+        "texto.alignment": {
+          "scope": "resource",
+          "type": "string",
+          "enum": ["left", "right", "justified"],
+          "enumDescriptions": [
+            "%configuration.alignment.enumDescriptions.left%",
+            "%configuration.alignment.enumDescriptions.right%",
+            "%configuration.alignment.enumDescriptions.justified%"
+          ],
+          "default": "left",
+          "description": "%configuration.alignment.description%"
         }
       }
     }

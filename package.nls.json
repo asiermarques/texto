@@ -1,0 +1,21 @@
+{
+  "writing-editor.displayName": "Texto: Writing editor",
+  "configuration.title": "Texto",
+  "configuration.focusMode.description": "Dims the whole Chapter except the block containing the cursor.",
+  "configuration.theme.description": "The Writing editor's own theme.",
+  "configuration.theme.enumDescriptions.light": "Paper background, dark ink. Independent of VSCode's theme.",
+  "configuration.theme.enumDescriptions.dark": "Dark background, light ink. Independent of VSCode's theme.",
+  "configuration.theme.enumDescriptions.vscode": "Follows VSCode's active theme, as in earlier versions.",
+  "configuration.textSize.description": "The size of the Writing editor's body text, in pixels.",
+  "configuration.alignment.description": "The alignment of the Writing editor's body text.",
+  "configuration.alignment.enumDescriptions.left": "Left-aligned, as before.",
+  "configuration.alignment.enumDescriptions.right": "Right-aligned.",
+  "configuration.alignment.enumDescriptions.justified": "Justified, with hyphenation so it doesn't open rivers of white space.",
+  "command.toggleFocusMode.title": "Texto: Toggle focus mode",
+  "command.increaseTextSize.title": "Texto: Increase text size",
+  "command.decreaseTextSize.title": "Texto: Decrease text size",
+  "command.resetTextSize.title": "Texto: Reset text size",
+  "command.toggleRawMarkdown.title": "Texto: Raw markdown",
+  "command.openWithTexto.title": "Open with Texto",
+  "command.openAsMarkdown.title": "Open as markdown"
+}

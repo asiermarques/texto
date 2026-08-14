@@ -23,7 +23,7 @@ import { closeAllEditors, createScratchFile, deleteScratchFile, getExtensionApi,
 // exercise to prove the cooperation works.
 
 const EDITOR_ASSOCIATIONS_KEY = 'editorAssociations';
-const VIEW_TYPE = 'texto.editorDeEscritura';
+const VIEW_TYPE = 'texto.editor';
 
 suite('US-011: opening by default in the Writing space', () => {
   let fileUri: vscode.Uri;
@@ -36,7 +36,7 @@ suite('US-011: opening by default in the Writing space', () => {
     await deleteScratchFile(fileUri);
   });
 
-  test('with *.md associated to the Prose editor, opening a Chapter from the explorer goes through it', async () => {
+  test('with *.md associated to the Writing editor, opening a Chapter from the explorer goes through it', async () => {
     fileUri = await createScratchFile('Un Capítulo cualquiera.');
     await vscode.workspace
       .getConfiguration('workbench')
@@ -46,7 +46,7 @@ suite('US-011: opening by default in the Writing space', () => {
     await vscode.commands.executeCommand('vscode.open', fileUri);
 
     const api = await getExtensionApi();
-    await waitFor(() => (api.panelFor(fileUri) ? true : undefined), 'the Chapter to open in the Prose editor');
+    await waitFor(() => (api.panelFor(fileUri) ? true : undefined), 'the Chapter to open in the Writing editor');
   });
 
   test('a Chapter of the Writing space can still be opened as plain text with "Reopen Editor With…"', async () => {
@@ -56,7 +56,7 @@ suite('US-011: opening by default in the Writing space', () => {
       .update(EDITOR_ASSOCIATIONS_KEY, { '*.md': VIEW_TYPE }, vscode.ConfigurationTarget.Global);
     await vscode.commands.executeCommand('vscode.open', fileUri);
     const api = await getExtensionApi();
-    await waitFor(() => (api.panelFor(fileUri) ? true : undefined), 'the Chapter to open in the Prose editor');
+    await waitFor(() => (api.panelFor(fileUri) ? true : undefined), 'the Chapter to open in the Writing editor');
 
     await vscode.commands.executeCommand('vscode.openWith', fileUri, 'default');
 

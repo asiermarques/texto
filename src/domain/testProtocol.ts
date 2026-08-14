@@ -16,6 +16,8 @@ export interface EditorSnapshot {
   readonly dimmedText: readonly string[];
   /** `document.documentElement.dataset.theme` — US-016's only way to prove which palette is active. */
   readonly themeAttribute: string;
+  /** `document.documentElement.dataset.align` — US-019's only way to prove which alignment is active. */
+  readonly alignAttribute: string;
   /** Computed `--editor-dim-opacity`, the Focus mode dimming calibrated per theme (US-016). */
   readonly dimOpacity: string;
   /**
@@ -45,6 +47,9 @@ export interface EditorSnapshot {
     readonly fontVariantNumeric: string;
     readonly textRendering: string;
     readonly webkitFontSmoothing: string;
+    /** US-019: computed alignment and word-hyphenation of the editor's content. */
+    readonly textAlign: string;
+    readonly hyphens: string;
   };
   /**
    * Bounding box (viewport-relative) and text of every rendered CodeMirror
@@ -62,10 +67,23 @@ export interface EditorSnapshot {
     readonly top: number;
     readonly height: number;
     readonly paddingTop: number;
+    readonly textAlign: string;
+    readonly liveClasses: readonly string[];
+    /**
+     * US-019: one entry per *visual* line the paragraph wraps into, measured
+     * off a DOM Range rather than off the element (a wrapped paragraph is a
+     * single `.cm-line` box that always spans the full measure, so its own
+     * rectangle can never show whether the text inside reaches the right
+     * margin). This is the only way to prove justification actually
+     * straightens the right edge instead of merely computing to `justify`.
+     */
+    readonly visualLines: readonly { readonly top: number; readonly left: number; readonly right: number }[];
   }[];
+  /** The content box every visual line above is measured against (US-019). */
+  readonly contentBox: { readonly left: number; readonly right: number };
 }
 
-import type { TextChange } from './textChange';
+import type { TextChange, TextSizeDirection } from './textChange';
 
 export type TestToWebviewMessage =
   | { readonly __test: true; readonly type: 'snapshot' }
@@ -83,6 +101,11 @@ export type TestToWebviewMessage =
   // movement, so EditorView.atomicRanges is genuinely exercised rather than
   // assumed (US-006/US-008: the cursor must not get stuck in a hidden marker).
   | { readonly __test: true; readonly type: 'moveCursor'; readonly direction: 'left' | 'right' }
-  | { readonly __test: true; readonly type: 'deleteBackward' };
+  | { readonly __test: true; readonly type: 'deleteBackward' }
+  // US-017: invokes the exact same handler the CM6 keymap binding (Mod-=,
+  // Mod--, Mod-0) runs — the real DOM keyboard event that reaches it is not
+  // simulated, same convention as moveCursor above calling the CM6 command
+  // directly instead of dispatching a KeyboardEvent.
+  | { readonly __test: true; readonly type: 'triggerTextSizeShortcut'; readonly direction: TextSizeDirection };
 
 export type TestFromWebviewMessage = { readonly __test: true; readonly type: 'snapshotResult' } & EditorSnapshot;

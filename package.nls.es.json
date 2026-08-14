@@ -1,0 +1,21 @@
+{
+  "writing-editor.displayName": "Texto: Editor de escritura",
+  "configuration.title": "Texto",
+  "configuration.focusMode.description": "Atenúa todo el Capítulo salvo el bloque que contiene el cursor.",
+  "configuration.theme.description": "Tema del Editor de escritura.",
+  "configuration.theme.enumDescriptions.light": "Fondo de papel, tinta oscura. Ajeno al tema de VSCode.",
+  "configuration.theme.enumDescriptions.dark": "Fondo oscuro, tinta clara. Ajeno al tema de VSCode.",
+  "configuration.theme.enumDescriptions.vscode": "Sigue el tema activo de VSCode, como en versiones anteriores.",
+  "configuration.textSize.description": "Tamaño del cuerpo del texto del Editor de escritura, en píxeles.",
+  "configuration.alignment.description": "Alineación del cuerpo del texto del Editor de escritura.",
+  "configuration.alignment.enumDescriptions.left": "Alineado a la izquierda, como hasta ahora.",
+  "configuration.alignment.enumDescriptions.right": "Alineado a la derecha.",
+  "configuration.alignment.enumDescriptions.justified": "Justificado, con partido de palabras para no abrir ríos de blanco.",
+  "command.toggleFocusMode.title": "Texto: Alternar modo foco",
+  "command.increaseTextSize.title": "Texto: Aumentar tamaño de texto",
+  "command.decreaseTextSize.title": "Texto: Reducir tamaño de texto",
+  "command.resetTextSize.title": "Texto: Restablecer tamaño de texto",
+  "command.toggleRawMarkdown.title": "Texto: Ver markdown",
+  "command.openWithTexto.title": "Abrir con Texto",
+  "command.openAsMarkdown.title": "Abrir como markdown"
+}

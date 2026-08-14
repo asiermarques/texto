@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { closeAllEditors, createScratchFile, deleteScratchFile, openInProseEditor, requestSnapshot, setCursor, setSelection, waitFor } from './support';
+import { closeAllEditors, createScratchFile, deleteScratchFile, openInWritingEditor, requestSnapshot, setCursor, setSelection, waitFor } from './support';
 
 // US-009: dimming the text that does not hold the cursor.
 
@@ -14,7 +14,7 @@ suite('US-009: dimming the text that does not hold the cursor', () => {
 
   test('the paragraph without the cursor is dimmed and the one holding it stays at full opacity', async () => {
     fileUri = await createScratchFile('Primer párrafo con varias palabras.\n\nSegundo párrafo también con texto.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
 
     await setCursor(panel, 50); // inside the second paragraph
     const snapshot = await waitFor(async () => {
@@ -28,7 +28,7 @@ suite('US-009: dimming the text that does not hold the cursor', () => {
 
   test('the focus moves to the other paragraph when the cursor moves', async () => {
     fileUri = await createScratchFile('Primer párrafo con varias palabras.\n\nSegundo párrafo también con texto.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
 
     await setCursor(panel, 10); // inside the first paragraph
     const snapshot = await waitFor(async () => {
@@ -41,15 +41,43 @@ suite('US-009: dimming the text that does not hold the cursor', () => {
 
   test('a single paragraph is never dimmed', async () => {
     fileUri = await createScratchFile('Un capítulo con un único párrafo, sin más.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
 
     const snapshot = await requestSnapshot(panel);
     assert.deepStrictEqual(snapshot.dimmedText, []);
   });
 
+  test('the paragraph keeps the focus with the cursor resting at the end of its last sentence', async () => {
+    fileUri = await createScratchFile('Primer párrafo con varias palabras.\n\nSegundo párrafo también con texto.');
+    const panel = await openInWritingEditor(fileUri);
+
+    await setCursor(panel, 71); // right after the final period of the second paragraph
+
+    const snapshot = await waitFor(async () => {
+      const s = await requestSnapshot(panel);
+      return s.dimmedText.some((t) => t.includes('Primer párrafo')) ? s : undefined;
+    }, 'the first paragraph to dim');
+
+    assert.ok(!snapshot.dimmedText.some((t) => t.includes('Segundo párrafo')), 'the paragraph being written should not be dimmed');
+  });
+
+  test('the preceding paragraph keeps the focus with the cursor on the blank line below it', async () => {
+    fileUri = await createScratchFile('Primer párrafo con varias palabras.\n\nSegundo párrafo también con texto.');
+    const panel = await openInWritingEditor(fileUri);
+
+    await setCursor(panel, 36); // the blank line between both paragraphs
+
+    const snapshot = await waitFor(async () => {
+      const s = await requestSnapshot(panel);
+      return s.dimmedText.some((t) => t.includes('Segundo párrafo')) ? s : undefined;
+    }, 'the second paragraph to dim');
+
+    assert.ok(!snapshot.dimmedText.some((t) => t.includes('Primer párrafo')), 'the paragraph just written should keep the focus');
+  });
+
   test('selecting text spanning two paragraphs leaves both at full opacity', async () => {
     fileUri = await createScratchFile('Primer párrafo con varias palabras.\n\nSegundo párrafo también con texto.');
-    const panel = await openInProseEditor(fileUri);
+    const panel = await openInWritingEditor(fileUri);
 
     // Selection from inside the first paragraph to inside the second one.
     await setSelection(panel, 10, 50);
