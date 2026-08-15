@@ -1,0 +1,22 @@
+name: CI
+
+# Push/PR quality check: every push and every pull request targeting `main`
+# runs the same quality gate as the release workflow, reported as a normal
+# status check. Never packages, never publishes, regardless of outcome.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: Quality gate
+    uses: ./.github/workflows/gate.yml

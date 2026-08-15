@@ -1,0 +1,138 @@
+name: Release
+
+# Tag-triggered release: a pushed semver tag (v0.1.0, ...) verifies the tag
+# matches package.json's version, runs the full quality gate, packages the
+# extension once, then:
+#   - publishes that same .vsix to Open VSX automatically, and
+#   - attaches it to a GitHub Release for manual upload to the VS Code
+#     Marketplace (see the github-release job for why that step isn't
+#     automated).
+# Ordinary commits or PR merges to `main` never trigger this workflow.
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  version-check:
+    name: Verify tag matches package.json version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Compare tag to package.json version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
+          if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
+            echo "::error::Tag v$TAG_VERSION does not match package.json version $PACKAGE_VERSION"
+            exit 1
+          fi
+          echo "Tag v$TAG_VERSION matches package.json version $PACKAGE_VERSION."
+
+  gate:
+    name: Quality gate
+    needs: version-check
+    uses: ./.github/workflows/gate.yml
+
+  package:
+    name: Package extension
+    needs: gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Package .vsix
+        # vscode:prepublish (npm run build) runs the bundle before packaging.
+        run: npx vsce package --out texto.vsix
+
+      - name: Upload .vsix artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: texto-vsix
+          path: texto.vsix
+          if-no-files-found: error
+
+  github-release:
+    name: Create GitHub Release
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Download .vsix artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: texto-vsix
+
+      - name: Create GitHub Release
+        # Deliberately not publishing to the VS Code Marketplace here:
+        # vsce has an --oidc flag but Microsoft hid it from --help as
+        # "unannounced" (microsoft/vscode-vsce#1297, 2026-08-05), and
+        # there's no self-service trusted-publisher setup on the
+        # Marketplace yet (tracked at microsoft/vsmarketplace#1422, still
+        # open). The alternative is a PAT that has to be manually re-issued
+        # per Azure DevOps org and rotated — not worth automating for now.
+        #
+        # Instead: attach the .vsix here and upload it by hand at
+        # https://marketplace.visualstudio.com/manage/publishers/asiermarques
+        # ("New extension" > "Update" with the downloaded .vsix). Revisit
+        # once trusted publishing lands.
+        run: gh release create "$GITHUB_REF_NAME" texto.vsix --title "$GITHUB_REF_NAME" --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  publish-openvsx:
+    name: Publish to Open VSX Registry
+    # needs: [package] only — deliberately not github-release, so this job's
+    # pass/fail is independent of the release job's (RISK-002): neither is
+    # downstream of the other, and GitHub's job list shows which one failed
+    # without reading logs.
+    needs: package
+    runs-on: ubuntu-latest
+    environment: open-vsx
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download .vsix artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: texto-vsix
+
+      - name: Publish to Open VSX Registry
+        # No --skip-duplicate, no continue-on-error: a republish of an
+        # existing version must fail the run (EDGE-001), not no-op quietly.
+        run: npx ovsx publish --packagePath texto.vsix -p "$OVSX_PAT"
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}

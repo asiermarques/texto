@@ -28,26 +28,29 @@ Two conventions used throughout:
 
 ### 1. Install the extension
 
-The extension is not on the marketplace; you install it from a file you build
-once.
+This project publishes tagged releases to the VS Code Marketplace and to the
+Open VSX Registry (search `Texto` by `asiermarques` in either). If a release
+is already there, install it from the Extensions panel like any other
+extension and skip to section 2. Building it yourself from source — the steps
+below — is only needed to try an unreleased change.
 
 1. Install [Node.js](https://nodejs.org) if you do not have it (the LTS
    version, whatever the big green button offers).
 2. Open the *Terminal* app (macOS) or *PowerShell* (Windows), go to this
-   project's folder and run these three lines, one at a time:
+   project's folder and run these two lines, one at a time:
 
    ```sh
    npm install
-   npm run build
    npx @vscode/vsce package
    ```
 
-   The last line prints something like `DONE Packaged: …/texto-0.0.1.vsix`.
-   That `.vsix` file is the extension.
+   The last line prints something like `DONE Packaged: …/texto-0.1.0.vsix`.
+   That `.vsix` file is the extension — the version number in its name comes
+   from `package.json`.
 3. Open VSCode. In the left bar click the *Extensions* (*Extensiones*) icon —
    the four little squares.
 4. At the top of that panel click the `…` menu → **Install from VSIX…**
-   (*Instalar desde VSIX…*), and pick the `texto-0.0.1.vsix` file from step 2.
+   (*Instalar desde VSIX…*), and pick the `.vsix` file from step 2.
 5. VSCode confirms the installation at the bottom right.
 6. **Check it took.** Still in the Extensions panel, search `Texto`: it must
    appear under *Installed* (*Instalado*). Nothing else in this guide works

@@ -3,13 +3,25 @@
   "publisher": "asiermarques",
   "displayName": "Texto",
   "description": "A prose writing editor for markdown, inside VSCode.",
-  "version": "0.0.1",
-  "private": true,
+  "version": "0.1.0",
   "license": "MIT",
+  "icon": "media/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/asiermarques/texto.git"
+  },
+  "keywords": [
+    "markdown",
+    "writing",
+    "fiction",
+    "prose",
+    "editor"
+  ],
   "engines": {
     "vscode": "^1.90.0"
   },
   "categories": [
+    "Notebooks",
     "Other"
   ],
   "activationEvents": [],
@@ -129,6 +141,7 @@
     }
   },
   "scripts": {
+    "vscode:prepublish": "npm run build",
     "build": "node esbuild.js",
     "watch": "node esbuild.js --watch",
     "typecheck": "tsc --noEmit",
@@ -143,8 +156,10 @@
     "@types/node": "^20.14.0",
     "@types/vscode": "^1.90.0",
     "@vscode/test-electron": "^3.1.0",
+    "@vscode/vsce": "^3.9.0",
     "esbuild": "^0.23.0",
     "mocha": "^10.7.0",
+    "ovsx": "^0.10.0",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"
   },

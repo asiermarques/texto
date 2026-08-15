@@ -1,8 +1,9 @@
 # ARCHITECTURE
 
 Constraints come from `docs/PRODUCT.md`: one Author, one environment (VSCode),
-markdown as the invisible source of truth, git for draft history, no
-distribution and no servers.
+markdown as the invisible source of truth, git for draft history, no servers.
+The extension itself is now distributed (PD-006, tag-based release pipeline
+below) — "no servers" is about runtime architecture, not about publishing.
 
 ## Shape
 
@@ -97,6 +98,33 @@ installer.
     opened"). Tests that need settings use `ConfigurationTarget.Global`, which
     exercises the same resolution mechanism; only the persistence location
     differs from a real **Writing space**.
+- **Tag-based release pipeline (GitHub Actions, `.github/workflows/`).**
+  `gate.yml` is a reusable `workflow_call` (typecheck, unit tests, integration
+  tests under `xvfb-run`, `.vscode-test/` cached on the `@vscode/test-electron`
+  version) called by both `ci.yml` (`push`/`pull_request` on `main`, status
+  check only, no secrets) and `release.yml` (`push: tags: v*.*.*`). Two
+  workflow files sharing one gate definition, not one file with conditional
+  jobs, so "does this push/PR pass CI" and "did this tag release
+  successfully" stay separate, independently readable signals. `release.yml`
+  checks the tag against `package.json`'s `"version"` before the gate runs
+  (fails fast, before spending CI minutes), then — gated on that passing —
+  packages the extension exactly once (`vsce package`, uploaded as a workflow
+  artifact), then runs two independent jobs, each `needs: [package]` and
+  neither `needs:` the other, so one's failure never masks or blocks the
+  other (RISK-002 in `.workflow/requisites/004-tag-based-marketplace-release.md`):
+  it publishes that same `.vsix` to Open VSX, and it attaches it to a GitHub
+  Release for the VS Code Marketplace. The Marketplace side is a manual
+  upload, not a third publish job: `vsce`'s only non-interactive path left
+  after Azure DevOps' March 2026 retirement of global PATs is either an
+  org-scoped PAT to re-issue by hand per Azure DevOps org, or an unannounced,
+  undocumented `--oidc` flag with no self-service trusted-publisher setup
+  on the Marketplace yet (tracked upstream at `microsoft/vsmarketplace#1422`)
+  — not worth automating over a manual upload at this project's size. The
+  Open VSX job reads its token (`OVSX_PAT`) from its own GitHub Environment,
+  never a bare repository secret. Neither the `ovsx publish` nor the
+  `gh release create` step carries `--skip-duplicate`, `continue-on-error` or
+  `|| true`: both already fail on a version/tag that already exists, so a
+  re-pushed tag fails the run rather than silently no-op'ing.
 - **Typography: Literata Variable**, bundled via `@fontsource-variable/literata`
   (SIL Open Font License) and served locally from `dist/media` — no network at
   runtime.
