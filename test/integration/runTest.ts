@@ -22,7 +22,12 @@ async function main(): Promise<void> {
       // lets a test exercise a Writing space's own
       // `.vscode/settings.json` (folder-scoped preferences) instead of only
       // Global-scoped ones.
-      launchArgs: [`--folder-uri=${vscodeUri(workspacePath)}`, '--disable-extensions'],
+      // --disable-gpu: under xvfb-run (no real GPU/compositor) Electron's
+      // GPU process is prone to silently wedging, which manifests as a
+      // renderer-side await (a webview message round-trip, here) that never
+      // settles instead of a clean error — exactly the shape of the CI-only
+      // hang this fixes. Software compositing is slower but deterministic.
+      launchArgs: [`--folder-uri=${vscodeUri(workspacePath)}`, '--disable-extensions', '--disable-gpu'],
     });
   } catch (err) {
     console.error('The integration test run failed.', err);
