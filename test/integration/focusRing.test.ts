@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { closeAllEditors, createScratchFile, deleteScratchFile, openInWritingEditor, requestSnapshot, waitFor } from './support';
+import { closeAllEditors, createScratchFile, deleteScratchFile, focusEditor, openInWritingEditor, requestSnapshot, waitFor } from './support';
 
 // US-012: no focus ring on the Writing surface.
 
@@ -16,22 +16,19 @@ suite('US-012: no focus ring on the Writing surface', () => {
     fileUri = await createScratchFile('Un párrafo cualquiera.');
     const panel = await openInWritingEditor(fileUri);
 
-    // `openInWritingEditor` only waits for the webview's script to answer
-    // its handshake — real window/DOM focus is a separate, genuinely async
-    // step (OS-level window activation, then DOM-level) that can lag well
-    // behind it under load, e.g. several test hosts launched back to back.
-    // Poll instead of asserting on a single snapshot taken the instant the
-    // panel opens, with a longer timeout than the suite's default: window
-    // activation is slower and less deterministic than any in-webview state
-    // change every other `waitFor` in this suite polls for.
-    const snapshot = await waitFor(
-      async () => {
-        const s = await requestSnapshot(panel);
-        return s.hasFocus ? s : undefined;
-      },
-      'the editor to hold focus after opening',
-      15000
-    );
+    // Asserted on `editorHasDomFocus` (document.activeElement), NOT on
+    // CodeMirror's `view.hasFocus`: the latter also requires
+    // `document.hasFocus()`, i.e. that the VSCode window is the frontmost
+    // window of the machine — the window manager's business, not the
+    // extension's. That made this test pass or fail depending on whether
+    // anything else had focus while the suite ran, which is exactly the
+    // flakiness it looked like. The DOM fact is what the focus-ring CSS
+    // keys off, and it is what the extension actually controls.
+    await focusEditor(panel);
+    const snapshot = await waitFor(async () => {
+      const s = await requestSnapshot(panel);
+      return s.editorHasDomFocus ? s : undefined;
+    }, 'the editor to take DOM focus when asked');
 
     assert.ok(
       snapshot.focusRing.editorOutlineStyle === 'none' || snapshot.focusRing.editorOutlineWidth === '0px',

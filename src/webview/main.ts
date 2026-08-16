@@ -345,6 +345,7 @@ window.addEventListener('message', (event: MessageEvent<ExtensionToWebviewMessag
         },
         hasGutter: root.querySelector('.cm-gutters') !== null,
         hasFocus: view.hasFocus,
+        editorHasDomFocus: document.activeElement === view.contentDOM,
         selectionHead: view.state.selection.main.head,
         style: {
           fontFamily: contentStyle.fontFamily,
@@ -424,6 +425,8 @@ window.addEventListener('message', (event: MessageEvent<ExtensionToWebviewMessag
       clipboardData.setData('text/plain', message.text);
       const pasteEvent = new ClipboardEvent('paste', { clipboardData, bubbles: true, cancelable: true });
       view.contentDOM.dispatchEvent(pasteEvent);
+    } else if (message.type === 'focusEditor') {
+      view.focus();
     } else if (message.type === 'scrollToEnd') {
       view.dispatch({ effects: EditorView.scrollIntoView(view.state.doc.length) });
     }

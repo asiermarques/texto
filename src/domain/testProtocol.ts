@@ -10,7 +10,22 @@ export interface EditorSnapshot {
   readonly renderedText: string;
   readonly liveClasses: readonly string[];
   readonly hasGutter: boolean;
+  /**
+   * CodeMirror's own `view.hasFocus` — deliberately NOT what US-012's
+   * focus-ring test asserts on: it ANDs the DOM fact below with
+   * `document.hasFocus()`, i.e. whether the VSCode window is the frontmost
+   * window of the whole machine. That is the window manager's business, not
+   * the extension's, and it made the test pass or fail depending on what
+   * else the Author happened to be doing while the suite ran.
+   */
   readonly hasFocus: boolean;
+  /**
+   * Whether the editor's content element is `document.activeElement` — the
+   * DOM-level fact the focus-ring CSS (`:focus`, `:focus-visible`) actually
+   * keys off, and the one the extension controls. This is what US-012
+   * asserts.
+   */
+  readonly editorHasDomFocus: boolean;
   readonly selectionHead: number;
   /** Text content of every element currently marked with `cm-live-dim` (Focus mode). */
   readonly dimmedText: readonly string[];
@@ -124,6 +139,13 @@ export type TestToWebviewMessage =
   | { readonly __test: true; readonly type: 'keydown'; readonly key: string; readonly mod?: boolean; readonly altKey?: boolean }
   // US-014: a real DOM `paste` with the given text as its clipboard payload.
   | { readonly __test: true; readonly type: 'pasteText'; readonly text: string }
+  // US-012: puts the DOM focus back on the editor explicitly. Whether the
+  // webview holds focus after opening depends on the OS window manager
+  // (which window is frontmost) — outside the extension's control and not
+  // something the product promises. `document.activeElement`, which is what
+  // the focus-ring rules actually key off, is per-document and settable
+  // regardless, so the ring can be asserted deterministically.
+  | { readonly __test: true; readonly type: 'focusEditor' }
   // US-018: CodeMirror only renders lines near the viewport — scrolls the
   // end of the document into view so a snapshot can see a long Chapter's
   // whole composed state, not just what fits on the first screen.

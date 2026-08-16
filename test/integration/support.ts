@@ -142,6 +142,12 @@ export async function pasteText(panel: vscode.WebviewPanel, text: string): Promi
   await panel.webview.postMessage(request);
 }
 
+/** US-012: puts the DOM focus back on the editor, independently of which OS window is frontmost. */
+export async function focusEditor(panel: vscode.WebviewPanel): Promise<void> {
+  const request: TestToWebviewMessage = { __test: true, type: 'focusEditor' };
+  await panel.webview.postMessage(request);
+}
+
 /** US-018: scrolls the end of the document into view, so a snapshot can see a long Chapter's whole composed state. */
 export async function scrollToEnd(panel: vscode.WebviewPanel): Promise<void> {
   const request: TestToWebviewMessage = { __test: true, type: 'scrollToEnd' };
