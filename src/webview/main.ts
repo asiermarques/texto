@@ -405,6 +405,16 @@ window.addEventListener('message', (event: MessageEvent<ExtensionToWebviewMessag
         ctrlKey: message.ctrlKey ?? false,
       });
       (domTarget ?? view.contentDOM).dispatchEvent(mouseEvent);
+    } else if (message.type === 'placeCursorAtPoint') {
+      // A collapsed selection, not a synthetic mousedown: without the
+      // mouseup that ends a real drag, CM6's pointer handling leaves a
+      // non-empty range behind, which would reveal a marker by overlapping
+      // it rather than by resting on its line — the very distinction under
+      // test. `posAtCoords` is CM6's own hit-test either way.
+      const pos = view.posAtCoords({ x: message.x, y: message.y });
+      if (pos !== null) {
+        view.dispatch({ selection: { anchor: pos } });
+      }
     } else if (message.type === 'keydown') {
       // Mirrors @codemirror/view's own platform check (`/Mac/.test(nav.platform)`)
       // so "Mod" resolves to whichever modifier CM6 itself expects on the

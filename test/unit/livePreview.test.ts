@@ -385,6 +385,30 @@ describe('computeLivePreviewInstructions — US-008: fenced code blocks', () => 
     expect(instructions).toContainEqual({ kind: 'hide', from: 35, to: 38 }); // the closing fence stays hidden
   });
 
+  it('reveals the opening fence with the cursor at the end of its line — where a click on it lands', () => {
+    // The whole fence line is hidden, so it renders empty and a real click
+    // anywhere on it resolves to the line's end (measured: position 5 here),
+    // never to a position "inside" the fence. Reading that as off the line
+    // left the fence unreachable with the mouse.
+    const instructions = computeLivePreviewInstructions(text, cursorAt(5));
+
+    expect(instructions).not.toContainEqual({ kind: 'hide', from: 0, to: 5 });
+    expect(instructions).toContainEqual({ kind: 'hide', from: 35, to: 38 }); // the closing fence stays hidden
+  });
+
+  it('keeps the opening fence hidden with the cursor on the next line', () => {
+    const instructions = computeLivePreviewInstructions(text, cursorAt(6)); // first character of "const a = 1;"
+
+    expect(instructions).toContainEqual({ kind: 'hide', from: 0, to: 5 });
+  });
+
+  it('reveals the closing fence with the cursor at the end of its line', () => {
+    const instructions = computeLivePreviewInstructions(text, cursorAt(38)); // end of the closing "```"
+
+    expect(instructions).not.toContainEqual({ kind: 'hide', from: 35, to: 38 });
+    expect(instructions).toContainEqual({ kind: 'hide', from: 0, to: 5 }); // the opening fence stays hidden
+  });
+
   it('does not hide anything for an unclosed fence, but still composes every line to the end (EDGE-005)', () => {
     const unclosed = '```js\nconst a = 1;';
     const instructions = computeLivePreviewInstructions(unclosed, FAR_AWAY);

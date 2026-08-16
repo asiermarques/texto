@@ -40,22 +40,30 @@ suite('US-008: scene break', () => {
     assert.ok(snapshot.renderedText.includes('---'));
   });
 
-  test('the cursor crosses the Scene break without getting stuck', async () => {
+  test('the cursor crosses the Scene break without ever resting inside hidden characters', async () => {
     fileUri = await createScratchFile('Primera escena.\n\n---\n\nSegunda escena.');
     const panel = await openInWritingEditor(fileUri);
 
-    // The break spans [17,20). Position 20 (right after it) does not "touch"
-    // it, so it stays hidden and atomic there — unlike position 17 (its own
-    // start), which already counts as being on its line.
-    await setCursor(panel, 20);
+    // The break spans [17,20), the whole of its own line. Position 21 (the
+    // blank line under it) is off that line, so there the break is composed
+    // and its dashes hidden.
+    await setCursor(panel, 21);
     await waitFor(async () => ((await requestSnapshot(panel)).liveClasses.includes('cm-live-scene-break') ? true : undefined), 'the break to be hidden');
 
     await moveCursor(panel, 'left');
 
-    const snapshot = await requestSnapshot(panel);
-    // Without atomicRanges, a single step left would leave the cursor at 19,
-    // inside the three-character hidden marker.
-    assert.strictEqual(snapshot.selectionHead, 17, 'the cursor got stuck inside the hidden Scene break');
+    // One step left reaches the end of the break's own line — which IS on
+    // that line, so the dashes come back with the cursor: it lands on
+    // characters it can see and delete, never inside invisible ones. The
+    // atomic skip that keeps a *mid-line* hidden marker (a `**` pair, a
+    // Link's target) from swallowing the cursor is measured in
+    // livePreviewEmphasis; a marker that is a whole line has both its edges
+    // on that line, so reaching either one reveals it.
+    const snapshot = await waitFor(async () => {
+      const s = await requestSnapshot(panel);
+      return s.renderedText.includes('---') ? s : undefined;
+    }, 'the dashes to come back as the cursor reaches the break');
+    assert.strictEqual(snapshot.selectionHead, 20, 'a single step left should reach the break, not jump over it');
   });
 
   test('the file keeps the horizontal rule exactly as written, on save', async () => {

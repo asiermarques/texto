@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { closeAllEditors, createScratchFile, deleteScratchFile, openInWritingEditor, requestSnapshot, setCursor, waitFor } from './support';
+import { closeAllEditors, createScratchFile, deleteScratchFile, openInWritingEditor, placeCursorAtPoint, requestSnapshot, setCursor, waitFor } from './support';
 
 // US-008, US-009, US-010 (006): Code blocks, Tasks and nested lists join the
 // Composed subset as blocks, consistent with Focus mode, Text alignment and
@@ -39,6 +39,37 @@ suite('US-008: fenced Code blocks composed as a block', () => {
       const s = await requestSnapshot(panel);
       return s.renderedText.includes('```js') ? s : undefined;
     }, 'the opening fence to reappear');
+
+    assert.ok(snapshot.renderedText.includes('```js'));
+  });
+
+  test('reveals the fence when the Author clicks on its line, which renders empty', async () => {
+    // The test above places the cursor at a position no click can produce:
+    // the fence line is hidden whole, so it renders empty and CodeMirror
+    // resolves a click anywhere along it to the line's END. Reaching that
+    // line with the mouse is the Author's only way back to a fence they
+    // need to fix, so it is measured here through CM6's own hit-test.
+    fileUri = await createScratchFile('Antes.\n\n```js\nconst a = 1;\n```\n\nDespués.');
+    const panel = await openInWritingEditor(fileUri);
+
+    await setCursor(panel, 0);
+    const composed = await waitFor(async () => {
+      const s = await requestSnapshot(panel);
+      return s.liveClasses.includes('cm-live-codeblock') && !s.renderedText.includes('```js') ? s : undefined;
+    }, 'the fence to be hidden');
+
+    const fenceLine = composed.lineRects.filter((l) => l.liveClasses.includes('cm-live-codeblock'))[0];
+    assert.strictEqual(fenceLine.text, '', 'the fence line should render empty — that is what makes it hard to click into');
+    await placeCursorAtPoint(
+      panel,
+      (composed.contentBox.left + composed.contentBox.right) / 2,
+      fenceLine.top + fenceLine.height / 2
+    );
+
+    const snapshot = await waitFor(async () => {
+      const s = await requestSnapshot(panel);
+      return s.renderedText.includes('```js') ? s : undefined;
+    }, 'the opening fence to reappear after clicking on its line');
 
     assert.ok(snapshot.renderedText.includes('```js'));
   });

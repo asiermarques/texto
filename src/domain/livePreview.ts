@@ -89,8 +89,18 @@ export function computeLivePreviewInstructions(text: string, selection: Selectio
     instructions.push({ kind: 'hide', from: mark.from, to: skipSpaces(mark.to, limit) });
   }
 
+  // `touchesBlock`, not `touches`: a line's `to` is the position of its own
+  // line break, so a cursor resting there is still ON that line — the next
+  // line starts one position further on, so there is no ambiguity to
+  // resolve. The half-open rule `touches` applies is right for an inline
+  // marker (a cursor just past a `**` has moved on) and wrong here, and it
+  // made a Code block's fence unreachable with the mouse: the whole fence
+  // line is hidden, so it renders empty and a click anywhere on it resolves
+  // to the line's end — exactly the position the half-open rule read as
+  // "not on this line". The fence then never came back, and the Author had
+  // no way to see or fix it (US-008's second acceptance criterion).
   function isActiveLine(pos: number): boolean {
-    return touches(selection, lineBoundsAt(text, pos));
+    return touchesBlock(selection, lineBoundsAt(text, pos));
   }
 
   // US-008: a Code block's composed look (monospace, its own ground, never

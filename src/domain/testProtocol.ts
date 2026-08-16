@@ -126,6 +126,15 @@ export type TestToWebviewMessage =
   // modifier keys included — exercises the actual `domEventHandlers`
   // listener (src/webview/main.ts), not a shortcut around it.
   | { readonly __test: true; readonly type: 'clickAt'; readonly pos: number; readonly metaKey?: boolean; readonly ctrlKey?: boolean }
+  // Where a click at these viewport coordinates leaves the cursor: resolved
+  // through CodeMirror's own `posAtCoords` — the same lookup its pointer
+  // handling does — and dispatched as a collapsed selection. `clickAt`
+  // above goes the other way (position → coordinates), which cannot express
+  // a click on a line whose whole content is hidden: a Code block's fence
+  // line renders empty, so every position on it maps to the same point,
+  // while a click anywhere along it resolves to the line's END. That
+  // asymmetry is precisely what US-008's reveal has to survive.
+  | { readonly __test: true; readonly type: 'placeCursorAtPoint'; readonly x: number; readonly y: number }
   // US-013/US-014/US-015 (006): a real DOM `keydown` on the content
   // element, so the CM6 `keymap` extension itself resolves it — proving
   // `preventDefault: true` actually wins against VSCode's own accelerators

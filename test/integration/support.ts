@@ -125,6 +125,17 @@ export async function clickAt(panel: vscode.WebviewPanel, pos: number, modifiers
 }
 
 /**
+ * Puts the cursor where a click at these viewport coordinates would land,
+ * resolved by CodeMirror's own hit-test — the only way to reach a line whose
+ * whole content is hidden (a Code block's fence), which `clickAt` cannot
+ * express because every position on it maps to the same point.
+ */
+export async function placeCursorAtPoint(panel: vscode.WebviewPanel, x: number, y: number): Promise<void> {
+  const request: TestToWebviewMessage = { __test: true, type: 'placeCursorAtPoint', x, y };
+  await panel.webview.postMessage(request);
+}
+
+/**
  * US-013/US-014/US-015: a real DOM keydown, so CM6's own keymap resolves it
  * (RISK-002). `mod` is CM6's own platform-independent modifier ("Mod-b" in
  * a keymap binding) — the webview resolves it to Cmd or Ctrl for whichever
