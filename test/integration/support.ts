@@ -124,9 +124,15 @@ export async function clickAt(panel: vscode.WebviewPanel, pos: number, modifiers
   await panel.webview.postMessage(request);
 }
 
-/** US-013/US-014/US-015: a real DOM keydown, so CM6's own keymap resolves it (RISK-002). */
-export async function pressKey(panel: vscode.WebviewPanel, key: string, modifiers: { meta?: boolean; ctrl?: boolean; alt?: boolean } = {}): Promise<void> {
-  const request: TestToWebviewMessage = { __test: true, type: 'keydown', key, metaKey: modifiers.meta, ctrlKey: modifiers.ctrl, altKey: modifiers.alt };
+/**
+ * US-013/US-014/US-015: a real DOM keydown, so CM6's own keymap resolves it
+ * (RISK-002). `mod` is CM6's own platform-independent modifier ("Mod-b" in
+ * a keymap binding) — the webview resolves it to Cmd or Ctrl for whichever
+ * platform is actually running the test, so this passes the same way
+ * locally (macOS) and in CI (Linux).
+ */
+export async function pressKey(panel: vscode.WebviewPanel, key: string, modifiers: { mod?: boolean; alt?: boolean } = {}): Promise<void> {
+  const request: TestToWebviewMessage = { __test: true, type: 'keydown', key, mod: modifiers.mod, altKey: modifiers.alt };
   await panel.webview.postMessage(request);
 }
 

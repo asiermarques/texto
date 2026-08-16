@@ -19,7 +19,7 @@ suite('US-013: strong/emphasis from the keyboard', () => {
     const to = from + 'texto'.length;
     await setSelection(panel, from, to);
 
-    await pressKey(panel, 'b', { meta: true });
+    await pressKey(panel, 'b', { mod: true });
 
     await waitForText(fileUri, 'Un párrafo con **texto**.');
   });
@@ -31,7 +31,7 @@ suite('US-013: strong/emphasis from the keyboard', () => {
     const to = from + 'texto'.length;
     await setSelection(panel, from, to);
 
-    await pressKey(panel, 'b', { meta: true });
+    await pressKey(panel, 'b', { mod: true });
 
     await waitForText(fileUri, 'Un párrafo con texto.');
   });
@@ -43,7 +43,7 @@ suite('US-013: strong/emphasis from the keyboard', () => {
     const to = from + 'texto'.length;
     await setSelection(panel, from, to);
 
-    await pressKey(panel, 'i', { meta: true });
+    await pressKey(panel, 'i', { mod: true });
 
     await waitForText(fileUri, 'Un párrafo con *texto*.');
   });
@@ -64,7 +64,7 @@ suite('US-014: a Link from the keyboard and by pasting', () => {
     const to = from + 'esta fuente'.length;
     await setSelection(panel, from, to);
 
-    await pressKey(panel, 'k', { meta: true });
+    await pressKey(panel, 'k', { mod: true });
 
     await waitForText(fileUri, 'Cita [esta fuente]() ahora.');
   });
@@ -76,7 +76,7 @@ suite('US-014: a Link from the keyboard and by pasting', () => {
     const to = from + 'esta fuente'.length;
     await setSelection(panel, from, to);
 
-    await pressKey(panel, 'k', { meta: true, alt: true });
+    await pressKey(panel, 'k', { mod: true, alt: true });
 
     await waitForText(fileUri, 'Cita [esta fuente]() ahora.');
   });

@@ -405,10 +405,15 @@ window.addEventListener('message', (event: MessageEvent<ExtensionToWebviewMessag
       });
       (domTarget ?? view.contentDOM).dispatchEvent(mouseEvent);
     } else if (message.type === 'keydown') {
+      // Mirrors @codemirror/view's own platform check (`/Mac/.test(nav.platform)`)
+      // so "Mod" resolves to whichever modifier CM6 itself expects on the
+      // platform actually running the test — Cmd locally on macOS, Ctrl on
+      // the Linux runner GitHub Actions uses.
+      const isMac = /Mac/.test(navigator.platform);
       const keyEvent = new KeyboardEvent('keydown', {
         key: message.key,
-        metaKey: message.metaKey ?? false,
-        ctrlKey: message.ctrlKey ?? false,
+        metaKey: (message.mod ?? false) && isMac,
+        ctrlKey: (message.mod ?? false) && !isMac,
         altKey: message.altKey ?? false,
         bubbles: true,
         cancelable: true,

@@ -26,16 +26,22 @@ suite('US-018: examples/espacio-de-escritura/ composes the whole extended subset
     await fs.promises.writeFile(fileUri.fsPath, content, 'utf8');
 
     const panel = await openInWritingEditor(fileUri);
-    await waitFor(async () => {
+    const top = await waitFor(async () => {
       const s = await requestSnapshot(panel);
       return s.liveClasses.length > 5 ? s : undefined;
     }, 'the example Chapter to finish composing');
     await scrollToEnd(panel);
-    const snapshot = await waitFor(async () => {
+    const bottom = await waitFor(async () => {
       const s = await requestSnapshot(panel);
       return s.liveClasses.includes('cm-live-apparatus') ? s : undefined;
     }, 'the end of the Chapter (the Footnote definition) to scroll into view');
 
+    // CodeMirror only renders lines near the viewport: scrolling to the end
+    // to see the Footnote definition can legitimately push the heading back
+    // out of the DOM, so no single snapshot is guaranteed to contain every
+    // class — the union of "top of the Chapter" and "bottom of the Chapter"
+    // is what actually covers the whole file.
+    const seenClasses = new Set([...top.liveClasses, ...bottom.liveClasses]);
     const expectedClasses = [
       'cm-live-heading-1',
       'cm-live-heading-2',
@@ -52,7 +58,7 @@ suite('US-018: examples/espacio-de-escritura/ composes the whole extended subset
       'cm-live-apparatus',
     ];
     for (const cls of expectedClasses) {
-      assert.ok(snapshot.liveClasses.includes(cls), `expected ${cls} to be composed somewhere in the example Chapter — got: ${snapshot.liveClasses.join(', ')}`);
+      assert.ok(seenClasses.has(cls), `expected ${cls} to be composed somewhere in the example Chapter — got: ${[...seenClasses].join(', ')}`);
     }
 
     await deleteScratchFile(fileUri);

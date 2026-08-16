@@ -115,7 +115,13 @@ export type TestToWebviewMessage =
   // element, so the CM6 `keymap` extension itself resolves it — proving
   // `preventDefault: true` actually wins against VSCode's own accelerators
   // (RISK-002), not merely that the handler function works in isolation.
-  | { readonly __test: true; readonly type: 'keydown'; readonly key: string; readonly metaKey?: boolean; readonly ctrlKey?: boolean; readonly altKey?: boolean }
+  // `mod`, not a literal `metaKey`/`ctrlKey`: CM6's "Mod-" keybindings
+  // resolve to Cmd on macOS and Ctrl everywhere else, so the webview
+  // resolves this the same way CM6 itself does (`navigator.platform`) —
+  // hard-coding `metaKey` here would only ever exercise the binding on a
+  // macOS test runner, passing locally and failing on GitHub Actions' Linux
+  // one.
+  | { readonly __test: true; readonly type: 'keydown'; readonly key: string; readonly mod?: boolean; readonly altKey?: boolean }
   // US-014: a real DOM `paste` with the given text as its clipboard payload.
   | { readonly __test: true; readonly type: 'pasteText'; readonly text: string }
   // US-018: CodeMirror only renders lines near the viewport — scrolls the
