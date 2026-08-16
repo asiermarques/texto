@@ -1,5 +1,5 @@
-import { markdownLanguage } from '@codemirror/lang-markdown';
 import type { SyntaxNode } from '@lezer/common';
+import { parser } from './markdownParser';
 
 /**
  * US-020 (F-006): counts prose, not markdown. Structural syntax — heading
@@ -10,7 +10,30 @@ import type { SyntaxNode } from '@lezer/common';
  * match what Google Docs shows for the same prose, which is what the Author
  * is going to compare it against.
  */
-const MARKER_TYPES = new Set(['HeaderMark', 'QuoteMark', 'ListMark', 'EmphasisMark', 'CodeMark', 'LinkMark', 'URL', 'HorizontalRule']);
+// FR-007 (006): a Code block's contents (CodeText, and its info string,
+// CodeInfo), a Task's marker, a Footnote's call and label, and a whole
+// Reference definition are not prose either — DEC-005. A FootnoteReference
+// excludes the WHOLE call (marks and label together, like HorizontalRule
+// does for "---") because the label ("1", "nota-a"…) is an identifier, not
+// a word; a FootnoteDefinitionMark excludes only the "[^1]: " prefix,
+// deliberately leaving the definition's own text countable — it is real
+// prose the Author wrote, same as a Paragraph's.
+const MARKER_TYPES = new Set([
+  'HeaderMark',
+  'QuoteMark',
+  'ListMark',
+  'EmphasisMark',
+  'CodeMark',
+  'LinkMark',
+  'URL',
+  'HorizontalRule',
+  'CodeText',
+  'CodeInfo',
+  'TaskMarker',
+  'FootnoteReference',
+  'FootnoteDefinitionMark',
+  'LinkReference',
+]);
 
 export function countWords(text: string): number {
   return countWordsInRange(text, 0, text.length);
@@ -31,7 +54,7 @@ export function countWordsInRange(text: string, from: number, to: number): numbe
  * to CUT OUT, and the prose is everything else — the same trick, generalised.
  */
 function collectMarkerRanges(text: string, from: number, to: number): Array<readonly [number, number]> {
-  const tree = markdownLanguage.parser.parse(text);
+  const tree = parser.parse(text);
   const ranges: Array<readonly [number, number]> = [];
 
   function visit(node: SyntaxNode): void {

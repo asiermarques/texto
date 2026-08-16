@@ -66,7 +66,14 @@ installer.
     the webview↔extension message protocol, the webview HTML template, the CSP
     nonce, live preview and focus mode analysis, word counting
     (`wordCount.ts`), and the settings-toolbar button shapes
-    (`editorToolbar.ts`).
+    (`editorToolbar.ts`). Requirement 006 added the editing affordances as
+    their own pure functions, each with its own vitest suite:
+    `inlineFormatting.ts` (strong/emphasis wrap-unwrap), `linkEditing.ts`
+    (the Link shortcut and paste-a-URL-over-a-selection),
+    `listContinuation.ts` (Enter inside a list/Task/blockquote) and
+    `taskToggle.ts` (the click-to-toggle edit) — `src/webview/main.ts` only
+    wires each one's result to a real `view.dispatch`, the same split
+    `livePreview.ts`/`livePreviewPlugin.ts` already established.
   - `src/infrastructure/` — the only place that calls the real `vscode` API:
     `WritingEditorProvider`, which registers the `CustomTextEditorProvider` and
     applies `WorkspaceEdit`s; `wordCountStatusBar.ts` and `editorToolbar.ts`,
@@ -209,6 +216,40 @@ installer.
     **Scene break** jumping between `⁂` and `---`). The marker-substitute
     class is what stops the composed glyph and the real marker from showing
     at once once the marker is revealed.
+- **Every composition is a decoration plus CSS — never a widget (requirement
+  006).** `Decoration.replace`/`Decoration.mark`/`Decoration.line` over the
+  Author's own characters, styled by `styles.css`; nothing in the Composed
+  subset is an inserted `WidgetType` (a rendered image, a real `<input
+  type="checkbox">`, a table grid). A Task's box (DEC-002) is the sharpest
+  example of why: `[ ]`/`[x]` stay real DOM text, visually replaced by a CSS
+  `::before` glyph rather than removed — which is what lets
+  `domEventHandlers` hit-test the span at all for US-016's click-to-toggle. A
+  widget would still have to round-trip through the same text in the end (a
+  fake checkbox has to write real markdown back on click), for a worse
+  editing surface: real text stays selectable, composable with other
+  decorations, and exempt from the layout risk RISK-004/US-006 already
+  fought hard to get right for hidden markers. `docs/UBIQUITOUS_LANGUAGE.md`
+  calls the whole set the **Composed subset**.
+- **One parser configuration, shared by every traversal (requirement
+  006).** `src/domain/markdownParser.ts` exports the single `MarkdownParser`
+  instance (`markdownLanguage.parser` configured with the Footnote
+  extension, `footnotes.ts`) that `livePreview.ts`, `focusMode.ts` and
+  `wordCount.ts` all call `.parse(text)` on — previously each imported
+  `markdownLanguage` and parsed independently. `footnotes.ts` is BR-003's one
+  new dependency (`@lezer/markdown`, already transitive through
+  `@codemirror/lang-markdown`, now a direct one): a hand-written
+  `parseInline`/`parseBlock` extension, not a second markdown implementation
+  (ASM-003) — `[^label]` reuses the exact "two marks bounding content" shape
+  `StrongEmphasis` already has, so it composes through the same
+  `INLINE_MARK_NODES` table with no new code in `livePreview.ts`'s
+  traversal; `[^label]: text` is deliberately single-line only (no
+  multi-paragraph footnote content), matching PD-005's "one Paragraph, one
+  line" grain instead of fighting it. RISK-001's mitigation — one parse
+  shared *between the two view plugins*, not just one parser instance shared
+  across call sites — was measured and not needed (US-017,
+  `test/unit/livePreviewLatency.test.ts`): a chapter-length Chapter using
+  every construct this requirement added stays well inside budget with two
+  full re-parses per keystroke.
 - **Preferences are VSCode settings, applied live (US-015).** Every Editor de
   escritura preference is declared under `contributes.configuration` in
   `package.json`, prefixed `texto.` (e.g. `texto.focusMode`, `texto.theme`,

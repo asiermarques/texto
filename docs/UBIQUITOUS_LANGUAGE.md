@@ -17,13 +17,32 @@ describing them changes with the language.
 
 | Term | Definition | UI wording (ES) | UI wording (EN) | Avoid |
 | --- | --- | --- | --- | --- |
-| **Work** | The complete piece of fiction being written: a novel, a long story, a collection. | Obra | Work | Project, book, manuscript |
-| **Chapter** | Unit of organisation of the **Work**, and the contents of one markdown file. | Capítulo | Chapter | Document, file |
-| **Scene** | Continuous stretch of action inside a **Chapter**, delimited by **Scene breaks**. | Escena | Scene | Section, block, part |
+| **Work** | The complete piece being written: a novel, a long story, a collection — or, since requirement 006, an essay, a report, a set of notes, documentation. | Obra | Work | Project, book, manuscript |
+| **Chapter** | Unit of organisation of the **Work**, and the contents of one markdown file: a chapter in fiction, a section or an article in non-fiction. | Capítulo | Chapter | Document, file |
+| **Scene** | Continuous stretch inside a **Chapter**, delimited by **Scene breaks**: a shift of action in fiction, of section in non-fiction. | Escena | Scene | Section, block, part |
 | **Scene break** | Mark separating two **Scenes** in the same **Chapter**; a horizontal rule in markdown. | Corte de escena | Scene break | Separator, divider |
 | **Paragraph** | A run of prose inside a **Scene**: exactly one line of the markdown file, however many lines it takes on screen. | Párrafo | Paragraph | Line, row (a **Paragraph** is not a line of the file wrapped by hand) |
 | **Draft** | Complete state of the **Work** at a given moment, as it was saved. | Borrador | Draft | Version, commit, revision |
 | **Draft history** | Ordered sequence of the **Drafts** of a **Work**, browsable and comparable. | Historial de borradores | Draft history | Git history, log, version control |
+
+## Material
+
+What a **Chapter** is made of, beyond the **Paragraph** — the vocabulary
+requirement 006 adds so non-fiction has the same canonical names fiction
+already had.
+
+| Term | Definition | UI wording (ES) | UI wording (EN) | Avoid |
+| --- | --- | --- | --- | --- |
+| **Link** | Text pointing at a target — inline (`[text](url)`), reference (`[text][ref]`), autolink (`<url>`) or a bare URL — composed as its text with the target hidden. | Enlace | Link | Hyperlink, URL (the URL is the target, not the **Link**) |
+| **Image** | `![alt](url)`, composed as its alternative text and marked as an **Image** rather than a **Link**; never rendered as a picture (NOGOAL-002). | Imagen | Image | Picture, figure |
+| **Inline code** | A fragment between backticks, composed monospaced inside a **Paragraph**, its backticks hidden. | Código en línea | Inline code | Code span, backtick |
+| **Code block** | A fenced or indented block of code, composed as preformatted text in a single colour, set apart from prose. | Bloque de código | Code block | Snippet, code fence |
+| **Task** | A list item marked `[ ]` or `[x]`, composed as a box built from those same characters. | Tarea | Task | Checkbox, to-do |
+| **Task list** | A list made entirely of **Tasks**. | Lista de tareas | Task list | Checklist, to-do list |
+| **Footnote** | A call in the text (`[^1]`) composed as a superscript, and its definition, composed apart from prose at the foot of the **Chapter**. | Nota al pie | Footnote | Note, endnote |
+| **Reference definition** | The line elsewhere in the **Chapter** that gives a reference **Link** its target; composed as a discreet block, not as prose. | Definición de referencia | Reference definition | Link reference, footnote (it is not a **Footnote**, even though both sit apart from prose) |
+| **Strikethrough** | `~~text~~`, composed struck through, its tildes hidden. | Tachado | Strikethrough | Strike, deleted text |
+| **Composed subset** | The markdown constructs the **Live preview** composes — the rest is shown exactly as written (BR-002 of 001). | Subconjunto compuesto | Composed subset | The FR-002 subset (an internal requirement-tracking name, not a term to write in code or comments), rendered subset |
 
 ## The editor
 
@@ -73,3 +92,7 @@ describing them changes with the language.
 - **"Writing surface" and "Writing editor" are not interchangeable.** The editor
   is the component VSCode opens; the surface is what is seen and felt inside it.
   The product's value is in the second, the integration work in the first.
+- **Fiction is no longer the only shape a Work takes (requirement 006).** No
+  user-facing string, comment or document may assume the **Work** being written
+  is a novel — an essay, a set of notes or documentation are just as much a
+  **Work**, made of the same **Chapters** and **Scenes**.

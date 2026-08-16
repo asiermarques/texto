@@ -29,7 +29,11 @@ export type WebviewToExtensionMessage =
   | { readonly type: 'selectionWordCount'; readonly count: number }
   // US-022: panel-local state, not a setting — reported so US-021's menu can
   // show the current value, but never persisted anywhere.
-  | { readonly type: 'rawMarkdownChanged'; readonly enabled: boolean };
+  | { readonly type: 'rawMarkdownChanged'; readonly enabled: boolean }
+  // US-007 (006, BR-004/DEC-001): Cmd/Ctrl+click on a composed Link. The
+  // webview never navigates itself — it only posts the target, and the
+  // extension host opens it with vscode.env.openExternal.
+  | { readonly type: 'openLink'; readonly url: string };
 
 export type ExtensionToWebviewMessage =
   | {

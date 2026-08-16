@@ -101,15 +101,18 @@ suite("US-006: emphasis hidden, revealed on the cursor's line", () => {
     await waitForText(fileUri, 'Texto con **fuerte aquí.');
   });
 
-  test('a pasted link or table is shown as plain text and preserved on save', async () => {
-    fileUri = await createScratchFile('Ver [este enlace](https://example.com) y seguir.');
+  // Links moved into the Composed subset in requirement 006 — see
+  // test/integration/livePreviewLinks.test.ts. Tables (NOGOAL-001 of 006)
+  // stay outside it.
+  test('a pasted table is shown as plain text and preserved on save', async () => {
+    fileUri = await createScratchFile('| a | b |\n| --- | --- |\n| 1 | 2 |');
     const panel = await openInWritingEditor(fileUri);
 
     const snapshot = await requestSnapshot(panel);
-    assert.ok(snapshot.renderedText.includes('[este enlace](https://example.com)'));
+    assert.ok(snapshot.renderedText.includes('| a | b |'));
 
     const document = await vscode.workspace.openTextDocument(fileUri);
     await document.save();
-    assert.strictEqual(document.getText(), 'Ver [este enlace](https://example.com) y seguir.');
+    assert.strictEqual(document.getText(), '| a | b |\n| --- | --- |\n| 1 | 2 |');
   });
 });

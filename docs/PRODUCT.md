@@ -2,14 +2,16 @@
 
 ## What it is
 
-An editor for writing fiction **inside VSCode**, with a writing surface worth
-using: markdown hidden, readable typography, no distractions. The texts are
-`.md` files in a git repository.
+An editor for writing **inside VSCode**, with a writing surface worth using:
+markdown hidden, readable typography, no distractions. The texts are `.md`
+files in a git repository — fiction first, and non-fiction (essays, notes,
+documentation) as of PD-007.
 
 ## Who it is for
 
 **The Author of this repository, first — and now, deliberately, anyone else
-who wants to write fiction this way (PD-006).** It was built for one person,
+who wants to write this way (PD-006), fiction or not (PD-007).** It was built
+for one person,
 who is also a developer and already lives in VSCode and git; that is still the
 primary design target, and technical vocabulary (git, commits, branches) is
 still not treated as an obstacle to remove.
@@ -24,9 +26,9 @@ actually gets used — by the Author or by anyone else.
 
 ## The problem
 
-Fiction is written today in **Google Docs, on a Mac**. It works, but the text is
-not in an open format, the draft history is useless, and the writing surface was
-not designed for fiction.
+Fiction — and, since PD-007, non-fiction too — is written today in **Google
+Docs, on a Mac**. It works, but the text is not in an open format, the draft
+history is useless, and the writing surface was not designed for prose.
 
 ## Success criterion
 
@@ -72,6 +74,15 @@ technical decisions were.
   This removes the Spanish-only blocker; the tag-based release pipeline (see
   MVP scope, below) is the mechanism that actually schedules the marketplace
   release this decision anticipates.
+- **PD-007 — A Work need not be fiction.** The **Writing editor** is used for
+  essays, notes and documentation as much as for a novel; nothing in the
+  product is fiction-specific. *Why:* the Author uses the same editor, with the
+  same preferences, to write both, and a **Composed subset**
+  (`.workflow/requisites/006-markdown-for-non-fiction.md`) frozen around a
+  novel's vocabulary — headings, emphasis, lists — left every **Link**, piece
+  of **Inline code** and **Task** in non-fiction rendering as raw syntax. This
+  does not widen "Who it is for": it is still the Author's own writing, in
+  whichever of the two shapes it takes.
 
 ## MVP scope
 

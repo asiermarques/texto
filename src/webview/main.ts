@@ -5,6 +5,10 @@ import type { ExtensionToWebviewMessage, TextChange, TextSizeDirection, WebviewT
 import type { TestFromWebviewMessage, TestToWebviewMessage } from '../domain/testProtocol';
 import type { TextAlignment } from '../domain/preferences';
 import { countWordsInRange } from '../domain/wordCount';
+import { toggleInlineWrap } from '../domain/inlineFormatting';
+import { isLikelyUrl, pasteUrlOverSelection, wrapSelectionAsLink } from '../domain/linkEditing';
+import { computeEnterContinuation } from '../domain/listContinuation';
+import { toggleTaskMarkerAt } from '../domain/taskToggle';
 import { livePreview } from './livePreviewPlugin';
 import { focusMode } from './focusModePlugin';
 import { noFocusRingTheme } from './noFocusRingTheme';
@@ -107,6 +111,119 @@ const textSizeKeymap: readonly KeyBinding[] = [
   { key: 'Mod-Alt--', run: requestTextSizeChange('decrease'), preventDefault: true },
 ];
 
+/**
+ * US-007 (BR-004/DEC-001) and US-016 (DEC-002): the two things a click on
+ * composed material can mean. A Task's box is checked first — it's a real
+ * DOM node precisely so this hit-test works (DEC-002) — before falling
+ * through to the Link case, which needs the Cmd/Ctrl modifier VSCode's own
+ * link-opening convention uses. The webview itself never navigates for a
+ * Link: it only posts the URL (read off the same `title` attribute that
+ * makes the target discoverable while hidden, EDGE-003/styles.css) and
+ * leaves opening it to the extension host (WritingEditorProvider), the one
+ * with a real `vscode.env.openExternal`.
+ */
+const clickHandler = EditorView.domEventHandlers({
+  mousedown(event, view) {
+    const target = event.target instanceof Element ? event.target : null;
+    if (target?.closest('.cm-live-task')) {
+      const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+      const change = pos === null ? null : toggleTaskMarkerAt(view.state.doc.toString(), pos);
+      if (change) {
+        event.preventDefault();
+        view.dispatch({ changes: [change] });
+        return true;
+      }
+    }
+    if (!(event.metaKey || event.ctrlKey)) {
+      return false;
+    }
+    const url = target?.closest('.cm-live-link')?.getAttribute('title');
+    if (!url) {
+      return false;
+    }
+    event.preventDefault();
+    postToExtension({ type: 'openLink', url });
+    return true;
+  },
+});
+
+/**
+ * US-014 (EDGE-007): pasting a URL over a non-empty selection turns it into
+ * a Link (or, if the selection already is one, replaces only its target —
+ * see `pasteUrlOverSelection`) instead of replacing the selected words with
+ * the raw URL. An empty selection, or clipboard text that doesn't look like
+ * a URL, falls through to CM6's ordinary paste.
+ */
+const pasteLinkHandler = EditorView.domEventHandlers({
+  paste(event, view) {
+    const selection = view.state.selection.main;
+    if (selection.empty) {
+      return false;
+    }
+    const pasted = event.clipboardData?.getData('text/plain');
+    if (!pasted || !isLikelyUrl(pasted)) {
+      return false;
+    }
+    event.preventDefault();
+    const { changes } = pasteUrlOverSelection(view.state.doc.toString(), { from: selection.from, to: selection.to }, pasted.trim());
+    view.dispatch({ changes });
+    return true;
+  },
+});
+
+/** US-013: `Cmd`/`Ctrl`+`B`/`I` — wraps (or unwraps) the selection with `marker`, through the same edit bridge every keystroke uses. */
+function applyInlineWrap(marker: string): (view: EditorView) => boolean {
+  return (view) => {
+    const selection = view.state.selection.main;
+    const result = toggleInlineWrap(view.state.doc.toString(), { from: selection.from, to: selection.to }, marker);
+    view.dispatch({ changes: result.changes, selection: result.selection });
+    return true;
+  };
+}
+
+/** US-014: `Cmd`/`Ctrl`+`K` — wraps the selection as `[selection]()`, cursor left on the target. */
+function applyLinkWrap(view: EditorView): boolean {
+  const selection = view.state.selection.main;
+  const result = wrapSelectionAsLink(view.state.doc.toString(), { from: selection.from, to: selection.to });
+  view.dispatch({ changes: result.changes, selection: result.selection });
+  return true;
+}
+
+// RISK-002: Mod-K is VSCode's own chord prefix (Mod-K Mod-S for Keyboard
+// Shortcuts, Mod-K V for the markdown preview, …) — the same fallback
+// pattern Text size's Mod-Alt-=/Mod-Alt-- already established for when the
+// platform steals the plain shortcut first (README, "A Link from the
+// keyboard"). Mod-B and Mod-I face weaker competition (VSCode's sidebar
+// toggle, not a chord prefix) so they get no alternate binding.
+const formattingKeymap: readonly KeyBinding[] = [
+  { key: 'Mod-b', run: applyInlineWrap('**'), preventDefault: true },
+  { key: 'Mod-i', run: applyInlineWrap('*'), preventDefault: true },
+  { key: 'Mod-k', run: applyLinkWrap, preventDefault: true },
+  { key: 'Mod-Alt-k', run: applyLinkWrap, preventDefault: true },
+];
+
+/**
+ * US-015: Enter, only when it lands inside a list item, a Task or a
+ * blockquote AND the cursor is collapsed — a real (non-empty) selection
+ * means the Author is replacing selected text, not continuing a block, so
+ * this falls through to the ordinary Enter binding below it (which then
+ * also handles every other Enter: a plain Paragraph, or no match at all).
+ */
+function continueListOnEnter(view: EditorView): boolean {
+  const selection = view.state.selection.main;
+  if (!selection.empty) {
+    return false;
+  }
+  const result = computeEnterContinuation(view.state.doc.toString(), selection.from);
+  if (!result) {
+    return false;
+  }
+  view.dispatch({ changes: result.changes, selection: result.selection });
+  return true;
+}
+
+const listContinuationKeymap: readonly KeyBinding[] = [{ key: 'Enter', run: continueListOnEnter }];
+
 // No undo/redo keymap here on purpose: VSCode owns undo/redo on the
 // TextDocument (Cmd+Z/Cmd+Shift+Z are handled by the workbench for the
 // active custom editor and are not intercepted here), and the resulting
@@ -115,8 +232,12 @@ const textSizeKeymap: readonly KeyBinding[] = [
 function createExtensions(focusModeEnabled: boolean) {
   return [
     keymap.of(textSizeKeymap),
+    keymap.of(formattingKeymap),
+    keymap.of(listContinuationKeymap),
     keymap.of(defaultKeymap),
     updateListener,
+    clickHandler,
+    pasteLinkHandler,
     EditorView.lineWrapping,
     noFocusRingTheme,
     livePreviewCompartment.of(livePreview),
@@ -265,6 +386,41 @@ window.addEventListener('message', (event: MessageEvent<ExtensionToWebviewMessag
       deleteCharBackward(view);
     } else if (message.type === 'triggerTextSizeShortcut') {
       requestTextSizeChange(message.direction)(view);
+    } else if (message.type === 'clickAt') {
+      const coords = view.coordsAtPos(message.pos);
+      const clientX = coords ? coords.left : 0;
+      const clientY = coords ? (coords.top + coords.bottom) / 2 : 0;
+      const domTarget = coords ? document.elementFromPoint(clientX, clientY) : null;
+      // clientX/clientY matter beyond finding domTarget: US-016's real
+      // handler (src/webview/main.ts's clickHandler) reads the position
+      // back off the event with `view.posAtCoords`, exactly like a real
+      // click would — omitting them would resolve every click to (0, 0).
+      const mouseEvent = new MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        clientX,
+        clientY,
+        metaKey: message.metaKey ?? false,
+        ctrlKey: message.ctrlKey ?? false,
+      });
+      (domTarget ?? view.contentDOM).dispatchEvent(mouseEvent);
+    } else if (message.type === 'keydown') {
+      const keyEvent = new KeyboardEvent('keydown', {
+        key: message.key,
+        metaKey: message.metaKey ?? false,
+        ctrlKey: message.ctrlKey ?? false,
+        altKey: message.altKey ?? false,
+        bubbles: true,
+        cancelable: true,
+      });
+      view.contentDOM.dispatchEvent(keyEvent);
+    } else if (message.type === 'pasteText') {
+      const clipboardData = new DataTransfer();
+      clipboardData.setData('text/plain', message.text);
+      const pasteEvent = new ClipboardEvent('paste', { clipboardData, bubbles: true, cancelable: true });
+      view.contentDOM.dispatchEvent(pasteEvent);
+    } else if (message.type === 'scrollToEnd') {
+      view.dispatch({ effects: EditorView.scrollIntoView(view.state.doc.length) });
     }
     return;
   }

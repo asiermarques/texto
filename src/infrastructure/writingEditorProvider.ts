@@ -325,6 +325,13 @@ export class WritingEditorProvider implements vscode.CustomTextEditorProvider {
       if (message.type === 'rawMarkdownChanged') {
         WritingEditorProvider.rawMarkdownStates.set(document.uri.toString(), message.enabled);
         WritingEditorProvider.refreshToolbar(document);
+        return;
+      }
+      if (message.type === 'openLink') {
+        // BR-004/DEC-001: the webview never navigates itself — this is the
+        // one place a Link's target is actually opened, with VSCode's own
+        // API, the same "explicit Author gesture" the Privacy NFR asks for.
+        void vscode.env.openExternal(vscode.Uri.parse(message.url));
       }
     });
 

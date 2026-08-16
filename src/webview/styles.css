@@ -40,6 +40,9 @@
    * it, and are what DEC-005 makes the default.
    */
   --editor-dim-opacity: 0.35;
+  /* US-003/US-008: a discreet ground for Inline code and Code blocks — dark
+     enough to read as "quoted", never as an alert. */
+  --editor-code-background: rgba(127, 127, 127, 0.16);
 }
 
 :root[data-theme='light'] {
@@ -52,6 +55,7 @@
   --editor-scrollbar-thumb: rgba(43, 38, 32, 0.25);
   --editor-scrollbar-thumb-hover: rgba(43, 38, 32, 0.4);
   --editor-dim-opacity: 0.45;
+  --editor-code-background: rgba(43, 38, 32, 0.08);
 }
 
 :root[data-theme='dark'] {
@@ -64,6 +68,7 @@
   --editor-scrollbar-thumb: rgba(233, 227, 214, 0.2);
   --editor-scrollbar-thumb-hover: rgba(233, 227, 214, 0.35);
   --editor-dim-opacity: 0.55;
+  --editor-code-background: rgba(233, 227, 214, 0.1);
 }
 
 html,
@@ -192,9 +197,10 @@ body {
 }
 
 /*
- * Live preview (US-006 to US-008): the FR-002 subset composed as prose. The
- * classes are applied by src/webview/livePreviewPlugin.ts out of
- * src/domain/livePreview.ts; only the look is decided here.
+ * Live preview (US-006 to US-008 of 001, extended by 006): the Composed
+ * subset composed as prose. The classes are applied by
+ * src/webview/livePreviewPlugin.ts out of src/domain/livePreview.ts; only
+ * the look is decided here.
  */
 
 .cm-live-strong {
@@ -203,6 +209,47 @@ body {
 
 .cm-live-emphasis {
   font-style: italic;
+}
+
+.cm-live-strikethrough {
+  text-decoration: line-through;
+}
+
+/*
+ * US-003: sized down slightly against Literata's x-height (Slice 2's risk) —
+ * a monospace face set at 1em next to serif prose reads visually larger than
+ * the surrounding text even though the point size is identical.
+ */
+.cm-live-code {
+  font-family: 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  font-size: 0.88em;
+  background: var(--editor-code-background);
+  border-radius: 3px;
+  padding: 0.1em 0.3em;
+}
+
+/*
+ * US-005: the target itself is not shown (EDGE-003) — a native `title`
+ * attribute (set by src/webview/livePreviewPlugin.ts off the `mark`
+ * instruction's `title` field) is what keeps it discoverable, no widget
+ * involved. `cursor: pointer` hints at US-007's Cmd/Ctrl+click without
+ * claiming an ordinary click follows it (VSCode's own convention).
+ */
+.cm-live-link {
+  text-decoration: underline;
+  text-decoration-color: var(--editor-blockquote-rail);
+  text-underline-offset: 0.15em;
+  cursor: pointer;
+}
+
+/* US-006: legible as an Image rather than a Link (NOGOAL-002: never rendered as a picture) — italic, no underline, distinguished by a small glyph. */
+.cm-live-image {
+  font-style: italic;
+  opacity: 0.85;
+}
+.cm-live-image::before {
+  content: '🖼 ';
+  font-style: normal;
 }
 
 /*
@@ -273,6 +320,77 @@ body {
 
 .cm-live-list-number {
   font-variant-numeric: tabular-nums;
+  padding-left: 1.4em;
+  text-indent: -1.4em;
+}
+
+/*
+ * US-010: depth 1 is the base indent already set on cm-live-list-bullet /
+ * cm-live-list-number above — these are the overrides for everything
+ * nested past it, each level widening the hanging indent by the same
+ * 1.4em unit. Capped at MAX_LIST_DEPTH_CLASS (src/domain/livePreview.ts):
+ * deeper items reuse depth 6's indent and glyph rather than growing
+ * forever.
+ */
+.cm-live-list-bullet.cm-live-list-depth-2,
+.cm-live-list-number.cm-live-list-depth-2 {
+  padding-left: 2.8em;
+}
+.cm-live-list-bullet.cm-live-list-depth-3,
+.cm-live-list-number.cm-live-list-depth-3 {
+  padding-left: 4.2em;
+}
+.cm-live-list-bullet.cm-live-list-depth-4,
+.cm-live-list-number.cm-live-list-depth-4 {
+  padding-left: 5.6em;
+}
+.cm-live-list-bullet.cm-live-list-depth-5,
+.cm-live-list-number.cm-live-list-depth-5 {
+  padding-left: 7em;
+}
+.cm-live-list-bullet.cm-live-list-depth-6,
+.cm-live-list-number.cm-live-list-depth-6 {
+  padding-left: 8.4em;
+}
+
+/* The bullet glyph itself cycles every three levels — •, ◦, ▪ — so depth stays legible without an unbounded set of new symbols. */
+.cm-live-list-bullet-mark.cm-live-list-depth-2::before {
+  content: '◦';
+}
+.cm-live-list-bullet-mark.cm-live-list-depth-3::before,
+.cm-live-list-bullet-mark.cm-live-list-depth-6::before {
+  content: '▪';
+}
+.cm-live-list-bullet-mark.cm-live-list-depth-4::before {
+  content: '•';
+}
+.cm-live-list-bullet-mark.cm-live-list-depth-5::before {
+  content: '◦';
+}
+
+/*
+ * US-009 (DEC-002): the box IS the Author's own "[ ]"/"[x]" — never
+ * removed from the DOM (a `hide` instruction would take it out of
+ * domEventHandlers' reach for US-016's click-to-toggle), only made
+ * visually transparent and overlaid with a glyph at the same position, so
+ * the span keeps its natural width and nothing shifts.
+ */
+.cm-live-task {
+  position: relative;
+  color: transparent;
+}
+.cm-live-task::before {
+  position: absolute;
+  left: 0;
+  color: var(--editor-foreground);
+  cursor: pointer;
+}
+.cm-live-task-unchecked::before {
+  content: '☐';
+}
+.cm-live-task-checked::before {
+  content: '☑';
+  opacity: 0.7;
 }
 
 /*
@@ -294,6 +412,46 @@ body {
   content: '⁂';
   color: var(--editor-scene-break);
   opacity: 0.6;
+}
+
+/*
+ * US-008 (DEC-004): a Code block is composed as a block, never justified or
+ * hyphenated whatever Text alignment says, and its lines keep the file's
+ * own leading whitespace (`white-space: pre-wrap`, not the default
+ * collapsing/wrapping prose uses). One line decoration per line, the same
+ * technique the blockquote rail uses, so a multi-line block still reads as
+ * one continuous surface rather than separate boxes.
+ */
+.cm-live-codeblock {
+  font-family: 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  font-size: 0.88em;
+  background: var(--editor-code-background);
+  white-space: pre-wrap;
+  padding-left: 0.9em;
+  text-align: left;
+}
+:root[data-align='right'] .cm-live-codeblock,
+:root[data-align='justified'] .cm-live-codeblock {
+  text-align: left;
+  hyphens: none;
+  -webkit-hyphens: none;
+}
+
+/* US-012: the call reads as a raised, smaller numeral — the usual typographic convention for a footnote, without inventing a new one. */
+.cm-live-footnote-ref {
+  vertical-align: super;
+  font-size: 0.75em;
+}
+
+/*
+ * US-012: a Footnote definition or a Reference definition — apparatus, not
+ * prose (FR-001). Smaller and muted so it visibly sits apart from the body
+ * text around it, the same discreet treatment a printed footnote gets at
+ * the foot of a page.
+ */
+.cm-live-apparatus {
+  font-size: 0.85em;
+  opacity: 0.75;
 }
 
 /*

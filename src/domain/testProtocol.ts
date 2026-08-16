@@ -106,6 +106,21 @@ export type TestToWebviewMessage =
   // Mod--, Mod-0) runs — the real DOM keyboard event that reaches it is not
   // simulated, same convention as moveCursor above calling the CM6 command
   // directly instead of dispatching a KeyboardEvent.
-  | { readonly __test: true; readonly type: 'triggerTextSizeShortcut'; readonly direction: TextSizeDirection };
+  | { readonly __test: true; readonly type: 'triggerTextSizeShortcut'; readonly direction: TextSizeDirection }
+  // US-007 (006): a real DOM `mousedown` dispatched at a document position,
+  // modifier keys included — exercises the actual `domEventHandlers`
+  // listener (src/webview/main.ts), not a shortcut around it.
+  | { readonly __test: true; readonly type: 'clickAt'; readonly pos: number; readonly metaKey?: boolean; readonly ctrlKey?: boolean }
+  // US-013/US-014/US-015 (006): a real DOM `keydown` on the content
+  // element, so the CM6 `keymap` extension itself resolves it — proving
+  // `preventDefault: true` actually wins against VSCode's own accelerators
+  // (RISK-002), not merely that the handler function works in isolation.
+  | { readonly __test: true; readonly type: 'keydown'; readonly key: string; readonly metaKey?: boolean; readonly ctrlKey?: boolean; readonly altKey?: boolean }
+  // US-014: a real DOM `paste` with the given text as its clipboard payload.
+  | { readonly __test: true; readonly type: 'pasteText'; readonly text: string }
+  // US-018: CodeMirror only renders lines near the viewport — scrolls the
+  // end of the document into view so a snapshot can see a long Chapter's
+  // whole composed state, not just what fits on the first screen.
+  | { readonly __test: true; readonly type: 'scrollToEnd' };
 
 export type TestFromWebviewMessage = { readonly __test: true; readonly type: 'snapshotResult' } & EditorSnapshot;

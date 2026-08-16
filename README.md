@@ -1,8 +1,8 @@
 # Texto
 
-A prose writing editor for markdown, inside VSCode. Hidden markdown syntax,
-readable typography, no distractions; the texts stay as `.md` files in a git
-repository.
+A minimalist writing editor for markdown, inside VSCode. Hidden markdown
+syntax, readable typography, no distractions; the texts stay as `.md` files
+in a git repository.
 
 See `docs/PRODUCT.md` for the why and `docs/ARCHITECTURE.md` for the how.
 
@@ -448,6 +448,66 @@ Nine times out of ten it's one of the first two:
 - **Breadcrumb / minimap / line numbers still there.** Either the folder is
   missing section 7's settings, or the file is outside it — both are
   workspace-scoped, like the association in section 3.
+
+### 10. What the Writing editor composes
+
+The Writing editor is for fiction and non-fiction alike (`docs/PRODUCT.md`,
+PD-007). Everything below is markdown syntax, hidden while the cursor is
+elsewhere and revealed while it touches the text it marks — the file on disk
+always stays exactly what you typed.
+
+**Composed:**
+
+| Construct | Written as | Reads as |
+| --- | --- | --- |
+| Heading | `## Title`, or `Title` over `====`/`----` (setext) | Sized, weighted title |
+| Strong / emphasis | `**text**` / `*text*` | Bold / italic |
+| Strikethrough | `~~text~~` | Struck through |
+| Inline code | `` `code` `` | Monospaced, on a discreet ground |
+| Escape | `\*` | The literal character, backslash hidden |
+| Scene break | `---` on its own, blank line above | Centred `⁂` |
+| Blockquote | `> text` | Indented, with a left rail |
+| List (bullet/ordered) | `- item` / `1. item` | A bullet or number, indented by nesting depth |
+| Task / task list | `- [ ] item` / `- [x] item` | A clickable box, empty or ticked |
+| Link (inline, reference, autolink, bare URL) | `[text](url)`, `[text][ref]`, `<url>`, a bare `https://…` | Underlined text, target hidden (hover or `Cmd`/`Ctrl`+click to see/follow it) |
+| Image | `![alt](url)` | Its alternative text, marked distinctly from a Link — never the picture itself |
+| Code block (fenced or indented) | ` ```lang…``` ` or a 4-space indent | Preformatted, monospaced, never justified |
+| Footnote | `text[^1]` … `[^1]: note` | The call as a superscript, the note apart from the prose |
+| Reference definition | `[ref]: url` | A discreet line, apart from the prose |
+
+**Not composed, shown and kept exactly as written:**
+
+- **Tables.** Aligning columns is the one construct that can't be expressed
+  as a decoration over the Author's own characters.
+- **HTML**, inline or block.
+- **Front matter** (a leading `---`-delimited YAML block). It renders
+  *worse* now that a bare `---` composes (see below) — `title: …` over `---`
+  reads as a heading. Known, not a bug; there is no supported way to write
+  front matter that looks right in the Writing editor today.
+- **Syntax colouring inside a Code block.** One colour, preformatted — this
+  editor quotes code, it doesn't highlight it.
+
+**The `---` rule.** Directly under a line of prose, with no blank line
+between them, `---` is a setext heading (CommonMark's own reading — the line
+above becomes an H2). With a blank line above it, `---` is a **Scene break**.
+The same three dashes, two different meanings, decided by nothing more than
+whether you pressed Enter twice or once before typing them — every **Scene
+break** already in this project's own history is written the second way, so
+nothing here changes on its own.
+
+**From the keyboard**, once something is selected (or, for the first two,
+even without a selection):
+
+| Shortcut | Does |
+| --- | --- |
+| `Cmd+B` / `Ctrl+B` | Wraps/unwraps the selection in `**` (strong) |
+| `Cmd+I` / `Ctrl+I` | Wraps/unwraps the selection in `*` (emphasis) |
+| `Cmd+K` / `Ctrl+K` | Wraps the selection as `[text]()`, cursor left on the target |
+| `Cmd+Alt+K` / `Ctrl+Alt+K` | Same as `Cmd+K` — use this if your VSCode swallows `Cmd+K` first as its own shortcut chord (`Cmd+K Cmd+S`, `Cmd+K V`, …) |
+| Paste a URL over a selection | Turns the selection into a Link with the pasted URL as target; pasting over a selection that already is a Link's text replaces only its target |
+| `Enter` inside a list item, a Task or a blockquote | Continues it — next bullet, next number, an empty (unchecked) Task box, another `>` — and on an *empty* item, removes the marker and leaves the block instead |
+| Click a Task's box | Toggles `[ ]` ↔ `[x]` in the file |
+| `Cmd`/`Ctrl`+click a Link | Opens its target with VSCode's own link handling — the Writing editor never navigates on its own |
 
 ---
 

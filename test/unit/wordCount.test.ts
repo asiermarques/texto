@@ -36,6 +36,29 @@ describe('countWords — US-020 (F-006): prose, not markdown', () => {
     expect(countWords('1. primero\n2. segundo')).toBe(2);
   });
 
+  it('FR-007 (006): a Code block\'s contents are not prose words', () => {
+    expect(countWords('Antes.\n\n```js\nconst a = 1;\nconsole.log(a);\n```\n\nDespués.')).toBe(2);
+    expect(countWords('Antes.\n\n    indented code\n    second line\n\nDespués.')).toBe(2);
+  });
+
+  it("FR-007 (006): a Link's URL is not a prose word, but its text is", () => {
+    expect(countWords('Ver [este enlace](https://example.com) ahora.')).toBe(4); // Ver, este, enlace, ahora
+    expect(countWords('Ver https://example.com ahora.')).toBe(2); // Ver, ahora
+  });
+
+  it("FR-007 (006): a Task's marker is not a prose word", () => {
+    expect(countWords('- [ ] tarea sin hacer')).toBe(3);
+  });
+
+  it("FR-007 (006): a Footnote's call/label is not a prose word, but its definition's text is", () => {
+    expect(countWords('Texto con nota[^1] al pie.')).toBe(5); // Texto, con, nota, al, pie
+    expect(countWords('[^1]: La nota completa aquí.')).toBe(4); // La, nota, completa, aquí
+  });
+
+  it('FR-007 (006): a whole Reference definition is not prose', () => {
+    expect(countWords('[ref]: https://example.com "Un título"')).toBe(0);
+  });
+
   it('matches the count of the same text with markdown marks stripped by hand', () => {
     const withMarkdown = '## Un título\n\nUn párrafo con **negrita** y una *cursiva*.\n\n> Una cita breve.\n\n---\n\n- Un elemento\n- Otro elemento';
     const plain = 'Un título\n\nUn párrafo con negrita y una cursiva.\n\nUna cita breve.\n\nUn elemento\nOtro elemento';

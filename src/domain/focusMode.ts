@@ -1,4 +1,4 @@
-import { markdownLanguage } from '@codemirror/lang-markdown';
+import { parser } from './markdownParser';
 import { distance, type SelectionRange, touchesBlock } from './selectionOverlap';
 
 /**
@@ -13,7 +13,7 @@ import { distance, type SelectionRange, touchesBlock } from './selectionOverlap'
  * focus instead.
  */
 export function computeDimmedRanges(text: string, selection: SelectionRange): SelectionRange[] {
-  const tree = markdownLanguage.parser.parse(text);
+  const tree = parser.parse(text);
   const blocks: SelectionRange[] = [];
 
   let block = tree.topNode.firstChild;

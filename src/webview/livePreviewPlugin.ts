@@ -40,7 +40,20 @@ function build(view: EditorView): { decorations: DecorationSet; atomicRanges: Ra
       decoRanges.push(deco);
       atomicRangeList.push(deco);
     } else if (instruction.kind === 'mark') {
-      decoRanges.push(Decoration.mark({ class: instruction.class }).range(instruction.from, instruction.to));
+      // Defence in depth: `Decoration.mark` throws on a zero-length range,
+      // and that throw happens mid-loop, inside a ViewPlugin update — it
+      // would abort composing the REST of the document too, not just this
+      // one construct. `computeLivePreviewInstructions` already never
+      // emits a degenerate 'mark' on purpose; this is the backstop in case
+      // some future construct forgets to check.
+      if (instruction.from >= instruction.to) {
+        continue;
+      }
+      // US-005/EDGE-003: a Link's target travels as a native `title`
+      // attribute on the same span — the only way to keep it discoverable
+      // while it stays hidden, with no widget and no layout change.
+      const attributes = instruction.title !== undefined ? { title: instruction.title } : undefined;
+      decoRanges.push(Decoration.mark({ class: instruction.class, attributes }).range(instruction.from, instruction.to));
     } else {
       const lineStart = view.state.doc.lineAt(instruction.from).from;
       decoRanges.push(Decoration.line({ class: instruction.class }).range(lineStart));

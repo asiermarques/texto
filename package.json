@@ -2,8 +2,8 @@
   "name": "texto",
   "publisher": "asiermarques",
   "displayName": "Texto",
-  "description": "A prose writing editor for markdown, inside VSCode.",
-  "version": "0.1.0",
+  "description": "A minimalist writing editor for markdown, inside VSCode.",
+  "version": "0.1.1",
   "license": "MIT",
   "icon": "media/icon.png",
   "repository": {
@@ -13,8 +13,7 @@
   "keywords": [
     "markdown",
     "writing",
-    "fiction",
-    "prose",
+    "minimalist",
     "editor"
   ],
   "engines": {
@@ -169,6 +168,7 @@
     "@codemirror/language": "^6.10.0",
     "@codemirror/state": "^6.4.0",
     "@codemirror/view": "^6.28.0",
-    "@fontsource-variable/literata": "^5.1.0"
+    "@fontsource-variable/literata": "^5.1.0",
+    "@lezer/markdown": "^1.7.2"
   }
 }

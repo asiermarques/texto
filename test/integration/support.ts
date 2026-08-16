@@ -118,6 +118,30 @@ export async function deleteBackward(panel: vscode.WebviewPanel): Promise<void> 
   await panel.webview.postMessage(request);
 }
 
+/** US-007: a real DOM mousedown at a document position, modifiers included. */
+export async function clickAt(panel: vscode.WebviewPanel, pos: number, modifiers: { meta?: boolean; ctrl?: boolean } = {}): Promise<void> {
+  const request: TestToWebviewMessage = { __test: true, type: 'clickAt', pos, metaKey: modifiers.meta, ctrlKey: modifiers.ctrl };
+  await panel.webview.postMessage(request);
+}
+
+/** US-013/US-014/US-015: a real DOM keydown, so CM6's own keymap resolves it (RISK-002). */
+export async function pressKey(panel: vscode.WebviewPanel, key: string, modifiers: { meta?: boolean; ctrl?: boolean; alt?: boolean } = {}): Promise<void> {
+  const request: TestToWebviewMessage = { __test: true, type: 'keydown', key, metaKey: modifiers.meta, ctrlKey: modifiers.ctrl, altKey: modifiers.alt };
+  await panel.webview.postMessage(request);
+}
+
+/** US-014: a real DOM paste with `text` as its clipboard payload. */
+export async function pasteText(panel: vscode.WebviewPanel, text: string): Promise<void> {
+  const request: TestToWebviewMessage = { __test: true, type: 'pasteText', text };
+  await panel.webview.postMessage(request);
+}
+
+/** US-018: scrolls the end of the document into view, so a snapshot can see a long Chapter's whole composed state. */
+export async function scrollToEnd(panel: vscode.WebviewPanel): Promise<void> {
+  const request: TestToWebviewMessage = { __test: true, type: 'scrollToEnd' };
+  await panel.webview.postMessage(request);
+}
+
 export async function waitForText(uri: vscode.Uri, expected: string, timeoutMs = 5000): Promise<void> {
   await waitFor(
     async () => {
