@@ -50,4 +50,29 @@ suite('US-001: opening a Chapter in the Writing editor', () => {
     assert.strictEqual(snapshot.text, '');
     assert.strictEqual(snapshot.selectionHead, 0);
   });
+
+  // The Writing surface is the whole window, not just the strip the text
+  // already occupies: a click on the blank space under the last line has to
+  // land in the Chapter. It did not — `.cm-content` is the only box a click
+  // can reach, and it was only as tall as the text already written — so a
+  // blank Chapter, whose strip is a single empty line at the very top, could
+  // not be written in at all: there was nowhere left to click. The cause was
+  // two layers up, in `EditorView.cspNonce` (src/webview/main.ts): without it
+  // the webview's Content Security Policy silently dropped every style
+  // CodeMirror injects at runtime, `.cm-content`'s own `min-height: 100%`
+  // among them.
+  test('a blank Chapter is writable over the whole Writing surface, not just its first line', async () => {
+    await deleteScratchFile(fileUri);
+    fileUri = await createScratchFile('');
+
+    const panel = await openInWritingEditor(fileUri);
+    const { writingSurface } = await requestSnapshot(panel);
+
+    assert.ok(writingSurface.visibleHeight > 0, 'the Writing surface should have a visible height at all');
+    assert.ok(
+      writingSurface.clickableHeight >= writingSurface.visibleHeight,
+      `a click should reach the Chapter anywhere on the Writing surface: it is ${writingSurface.visibleHeight}px tall ` +
+        `but only ${writingSurface.clickableHeight}px of it respond`
+    );
+  });
 });

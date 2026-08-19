@@ -96,6 +96,18 @@ export interface EditorSnapshot {
   }[];
   /** The content box every visual line above is measured against (US-019). */
   readonly contentBox: { readonly left: number; readonly right: number };
+  /**
+   * The Writing surface measured two ways: `visibleHeight` is the box the
+   * Author sees (`.cm-editor`), `clickableHeight` the box that actually
+   * receives a click (`.cm-content`, the `contenteditable`). A click landing
+   * between the two reaches no element CodeMirror listens on and does
+   * nothing at all, so the surface is only really writable where they
+   * coincide — which is what makes this measurable rather than a matter of
+   * trusting the CSS. `posAtCoords` cannot stand in for it: it clamps to the
+   * nearest position and answers happily for a point no click could ever
+   * deliver.
+   */
+  readonly writingSurface: { readonly visibleHeight: number; readonly clickableHeight: number };
 }
 
 import type { TextChange, TextSizeDirection } from './textChange';

@@ -430,7 +430,14 @@ installer.
    search from the rest of the editor.
 4. **Loading webview resources.** Fonts and assets go through
    `Webview.asWebviewUri` and the webview's content security policy. Known
-   friction, not an obstacle.
+   friction, not an obstacle — but the policy also reaches the styles
+   CodeMirror injects at runtime (its base theme, every `EditorView.theme`),
+   which it only stamps with the nonce when `EditorView.cspNonce` says what
+   the nonce is. Dropping them fails silently: the editor still renders, it
+   just loses its layout (`.cm-content` stops filling the Writing surface, so
+   a click below the text reaches nothing). See `createExtensions` in
+   `src/webview/main.ts`, and the specificity note at the top of
+   `src/webview/styles.css` for the other half of the same seam.
 5. **Git conflicts over prose.** They do not happen with one device. The
    mitigation is not to edit the same file in two places without pushing.
 

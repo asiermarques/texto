@@ -231,6 +231,18 @@ const listContinuationKeymap: readonly KeyBinding[] = [{ key: 'Enter', run: cont
 // we didn't originate — see US-002/US-003.
 function createExtensions(focusModeEnabled: boolean) {
   return [
+    // Without this, every style CodeMirror injects at runtime — its own base
+    // theme AND every `EditorView.theme` we add (noFocusRingTheme) — is
+    // dropped by the webview's Content Security Policy: `style-src` only
+    // admits the stylesheet host and this nonce, and CM6 puts the nonce on
+    // its `<style>` tag only when this facet says what it is (it does not
+    // read the `csp-nonce` meta tag by itself). The failure is silent and
+    // looks like a layout bug: `.cm-editor` is left as a plain block, so
+    // `.cm-content` never gets its `min-height: 100%` and the clickable
+    // surface is only as tall as the text already written — a blank Chapter
+    // then has a single line's worth of it, at the very top, and clicking
+    // anywhere else in the window does nothing at all.
+    EditorView.cspNonce.of(cspNonce),
     keymap.of(textSizeKeymap),
     keymap.of(formattingKeymap),
     keymap.of(listContinuationKeymap),
@@ -244,6 +256,10 @@ function createExtensions(focusModeEnabled: boolean) {
     focusModeCompartment.of(focusModeEnabled ? focusMode : []),
   ];
 }
+
+// The same nonce html.ts stamped into the Content Security Policy, carried
+// in the `csp-nonce` meta tag it also emits for exactly this purpose.
+const cspNonce = document.querySelector('meta[property="csp-nonce"]')?.getAttribute('content') ?? '';
 
 const root = document.getElementById('editor-root');
 if (!root) {
@@ -365,6 +381,10 @@ window.addEventListener('message', (event: MessageEvent<ExtensionToWebviewMessag
         },
         lineRects,
         contentBox: { left: contentRect.left, right: contentRect.right },
+        writingSurface: {
+          visibleHeight: editorEl ? editorEl.getBoundingClientRect().height : 0,
+          clickableHeight: contentRect.height,
+        },
       };
       vscodeApi.postMessage(snapshot);
     } else if (message.type === 'insert') {

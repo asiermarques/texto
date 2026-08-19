@@ -13,6 +13,13 @@
  * from `claro`/`oscuro` in US-002 (003).)
  * Typography is the editor's own and does not read `editor.fontFamily` /
  * `editor.fontSize` (US-004).
+ *
+ * Every rule that targets a CodeMirror class is written as `#editor-root
+ * .cm-…`, and the id is not decoration: CodeMirror's base theme generates
+ * its rules prefixed with the editor's own generated class (`.ͼ1 .cm-content`
+ * and friends), so a bare `.cm-content` here loses the tie and the editor
+ * silently falls back to monospace, to CodeMirror's own line insets and to
+ * its own leading. The id outranks all of it.
  */
 
 :root {
@@ -106,7 +113,7 @@ body {
   padding-bottom: 50vh;
 }
 
-.cm-editor {
+#editor-root .cm-editor {
   height: 100%;
   font-family: 'Literata Variable', Georgia, 'Times New Roman', serif;
   /* US-017: inherits #editor-root's font-size (same --editor-font-size). */
@@ -127,12 +134,12 @@ body {
 }
 
 /*
- * US-012 (DEC-001): no focus ring. This rule is the first line of defence,
- * but it is not the one that wins: the winner is
- * src/webview/noFocusRingTheme.ts (an EditorView.theme, injected after this
- * stylesheet and with higher precedence than CodeMirror's base theme). Kept
- * here anyway, scoped to the webview and covering :focus-visible, in case the
- * theme is no longer needed some day.
+ * US-012 (DEC-001): no focus ring. Belt and braces with
+ * src/webview/noFocusRingTheme.ts, which beats CodeMirror's own
+ * `&.cm-focused { outline: … }` on its own ground (an `EditorView.theme` is
+ * injected after the base theme) and adds `!important` for the browser ring
+ * VSCode tints. This rule covers the same ground from the stylesheet, with
+ * the id's specificity, in case that theme is no longer needed some day.
  */
 #editor-root,
 #editor-root *,
@@ -141,29 +148,41 @@ body {
   outline: none;
 }
 
-.cm-scroller {
+#editor-root .cm-scroller {
   font-family: inherit;
   line-height: inherit;
 }
 
 /* F-008: the scrollbar in keeping with the palette, not VSCode's. */
-.cm-scroller::-webkit-scrollbar {
+#editor-root .cm-scroller::-webkit-scrollbar {
   width: 12px;
 }
-.cm-scroller::-webkit-scrollbar-track {
+#editor-root .cm-scroller::-webkit-scrollbar-track {
   background: transparent;
 }
-.cm-scroller::-webkit-scrollbar-thumb {
+#editor-root .cm-scroller::-webkit-scrollbar-thumb {
   background: var(--editor-scrollbar-thumb);
   border-radius: 6px;
 }
-.cm-scroller::-webkit-scrollbar-thumb:hover {
+#editor-root .cm-scroller::-webkit-scrollbar-thumb:hover {
   background: var(--editor-scrollbar-thumb-hover);
 }
 
-.cm-content {
+#editor-root .cm-content {
   padding: 0;
   caret-color: var(--editor-cursor);
+}
+
+/*
+ * CodeMirror's base theme insets every line by `0 2px 0 6px`. Left alone it
+ * would push the whole column 6px off the measure #editor-root centres, and
+ * —because it is a shorthand— it would also flatten the vertical air the
+ * `.cm-live-*` rules further down give a heading or a Scene break. Those
+ * rules come later in this file and win the tie, so resetting here only
+ * clears the inset for ordinary prose.
+ */
+#editor-root .cm-line {
+  padding: 0;
 }
 
 /*
@@ -176,23 +195,23 @@ body {
  * already declared as `lang="es"` (html.ts). Values renamed from
  * `izquierda`/`derecha`/`justificado` in US-002 (003).
  */
-:root[data-align='right'] .cm-content {
+:root[data-align='right'] #editor-root .cm-content {
   text-align: right;
 }
 
-:root[data-align='justified'] .cm-content {
+:root[data-align='justified'] #editor-root .cm-content {
   text-align: justify;
   hyphens: auto;
   -webkit-hyphens: auto;
 }
 
 /* The Scene break's mark stays centred regardless of alignment. */
-:root[data-align='right'] .cm-live-scene-break,
-:root[data-align='justified'] .cm-live-scene-break {
+:root[data-align='right'] #editor-root .cm-live-scene-break,
+:root[data-align='justified'] #editor-root .cm-live-scene-break {
   text-align: center;
 }
 
-.cm-selectionBackground {
+#editor-root .cm-selectionBackground {
   background: var(--editor-selection) !important;
 }
 
@@ -203,15 +222,15 @@ body {
  * the look is decided here.
  */
 
-.cm-live-strong {
+#editor-root .cm-live-strong {
   font-weight: 700;
 }
 
-.cm-live-emphasis {
+#editor-root .cm-live-emphasis {
   font-style: italic;
 }
 
-.cm-live-strikethrough {
+#editor-root .cm-live-strikethrough {
   text-decoration: line-through;
 }
 
@@ -220,7 +239,7 @@ body {
  * a monospace face set at 1em next to serif prose reads visually larger than
  * the surrounding text even though the point size is identical.
  */
-.cm-live-code {
+#editor-root .cm-live-code {
   font-family: 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
   font-size: 0.88em;
   background: var(--editor-code-background);
@@ -235,7 +254,7 @@ body {
  * involved. `cursor: pointer` hints at US-007's Cmd/Ctrl+click without
  * claiming an ordinary click follows it (VSCode's own convention).
  */
-.cm-live-link {
+#editor-root .cm-live-link {
   text-decoration: underline;
   text-decoration-color: var(--editor-blockquote-rail);
   text-underline-offset: 0.15em;
@@ -243,11 +262,11 @@ body {
 }
 
 /* US-006: legible as an Image rather than a Link (NOGOAL-002: never rendered as a picture) — italic, no underline, distinguished by a small glyph. */
-.cm-live-image {
+#editor-root .cm-live-image {
   font-style: italic;
   opacity: 0.85;
 }
-.cm-live-image::before {
+#editor-root .cm-live-image::before {
   content: '🖼 ';
   font-style: normal;
 }
@@ -267,34 +286,34 @@ body {
  * to click above the text to hit it. Padding does count towards the
  * measurement.
  */
-.cm-live-heading-1,
-.cm-live-heading-2,
-.cm-live-heading-3,
-.cm-live-heading-4,
-.cm-live-heading-5,
-.cm-live-heading-6 {
+#editor-root .cm-live-heading-1,
+#editor-root .cm-live-heading-2,
+#editor-root .cm-live-heading-3,
+#editor-root .cm-live-heading-4,
+#editor-root .cm-live-heading-5,
+#editor-root .cm-live-heading-6 {
   font-weight: 700;
   line-height: 1.3;
   padding-top: 2rem;
   padding-bottom: 0.75rem;
 }
 
-.cm-live-heading-1 {
+#editor-root .cm-live-heading-1 {
   font-size: 1.6em;
 }
-.cm-live-heading-2 {
+#editor-root .cm-live-heading-2 {
   font-size: 1.4em;
 }
-.cm-live-heading-3 {
+#editor-root .cm-live-heading-3 {
   font-size: 1.2em;
 }
-.cm-live-heading-4,
-.cm-live-heading-5,
-.cm-live-heading-6 {
+#editor-root .cm-live-heading-4,
+#editor-root .cm-live-heading-5,
+#editor-root .cm-live-heading-6 {
   font-size: 1.05em;
 }
 
-.cm-live-blockquote {
+#editor-root .cm-live-blockquote {
   border-left: 3px solid var(--editor-blockquote-rail);
   padding-left: 0.9em;
   font-style: italic;
@@ -308,17 +327,17 @@ body {
  * only applies while the real dash is hidden, or both would show at once
  * ("- • primero").
  */
-.cm-live-list-bullet {
+#editor-root .cm-live-list-bullet {
   padding-left: 1.4em;
   text-indent: -1.4em;
 }
-.cm-live-list-bullet-mark::before {
+#editor-root .cm-live-list-bullet-mark::before {
   content: '•';
   display: inline-block;
   width: 1.4em;
 }
 
-.cm-live-list-number {
+#editor-root .cm-live-list-number {
   font-variant-numeric: tabular-nums;
   padding-left: 1.4em;
   text-indent: -1.4em;
@@ -332,39 +351,39 @@ body {
  * deeper items reuse depth 6's indent and glyph rather than growing
  * forever.
  */
-.cm-live-list-bullet.cm-live-list-depth-2,
-.cm-live-list-number.cm-live-list-depth-2 {
+#editor-root .cm-live-list-bullet.cm-live-list-depth-2,
+#editor-root .cm-live-list-number.cm-live-list-depth-2 {
   padding-left: 2.8em;
 }
-.cm-live-list-bullet.cm-live-list-depth-3,
-.cm-live-list-number.cm-live-list-depth-3 {
+#editor-root .cm-live-list-bullet.cm-live-list-depth-3,
+#editor-root .cm-live-list-number.cm-live-list-depth-3 {
   padding-left: 4.2em;
 }
-.cm-live-list-bullet.cm-live-list-depth-4,
-.cm-live-list-number.cm-live-list-depth-4 {
+#editor-root .cm-live-list-bullet.cm-live-list-depth-4,
+#editor-root .cm-live-list-number.cm-live-list-depth-4 {
   padding-left: 5.6em;
 }
-.cm-live-list-bullet.cm-live-list-depth-5,
-.cm-live-list-number.cm-live-list-depth-5 {
+#editor-root .cm-live-list-bullet.cm-live-list-depth-5,
+#editor-root .cm-live-list-number.cm-live-list-depth-5 {
   padding-left: 7em;
 }
-.cm-live-list-bullet.cm-live-list-depth-6,
-.cm-live-list-number.cm-live-list-depth-6 {
+#editor-root .cm-live-list-bullet.cm-live-list-depth-6,
+#editor-root .cm-live-list-number.cm-live-list-depth-6 {
   padding-left: 8.4em;
 }
 
 /* The bullet glyph itself cycles every three levels — •, ◦, ▪ — so depth stays legible without an unbounded set of new symbols. */
-.cm-live-list-bullet-mark.cm-live-list-depth-2::before {
+#editor-root .cm-live-list-bullet-mark.cm-live-list-depth-2::before {
   content: '◦';
 }
-.cm-live-list-bullet-mark.cm-live-list-depth-3::before,
-.cm-live-list-bullet-mark.cm-live-list-depth-6::before {
+#editor-root .cm-live-list-bullet-mark.cm-live-list-depth-3::before,
+#editor-root .cm-live-list-bullet-mark.cm-live-list-depth-6::before {
   content: '▪';
 }
-.cm-live-list-bullet-mark.cm-live-list-depth-4::before {
+#editor-root .cm-live-list-bullet-mark.cm-live-list-depth-4::before {
   content: '•';
 }
-.cm-live-list-bullet-mark.cm-live-list-depth-5::before {
+#editor-root .cm-live-list-bullet-mark.cm-live-list-depth-5::before {
   content: '◦';
 }
 
@@ -375,20 +394,20 @@ body {
  * visually transparent and overlaid with a glyph at the same position, so
  * the span keeps its natural width and nothing shifts.
  */
-.cm-live-task {
+#editor-root .cm-live-task {
   position: relative;
   color: transparent;
 }
-.cm-live-task::before {
+#editor-root .cm-live-task::before {
   position: absolute;
   left: 0;
   color: var(--editor-foreground);
   cursor: pointer;
 }
-.cm-live-task-unchecked::before {
+#editor-root .cm-live-task-unchecked::before {
   content: '☐';
 }
-.cm-live-task-checked::before {
+#editor-root .cm-live-task-checked::before {
   content: '☑';
   opacity: 0.7;
 }
@@ -403,12 +422,12 @@ body {
  * decoration, and the margin does not count towards the height CodeMirror
  * measures.
  */
-.cm-live-scene-break {
+#editor-root .cm-live-scene-break {
   min-height: 1.4em;
   text-align: center;
   padding: 1.2em 0;
 }
-.cm-live-scene-break-mark::before {
+#editor-root .cm-live-scene-break-mark::before {
   content: '⁂';
   color: var(--editor-scene-break);
   opacity: 0.6;
@@ -422,7 +441,7 @@ body {
  * technique the blockquote rail uses, so a multi-line block still reads as
  * one continuous surface rather than separate boxes.
  */
-.cm-live-codeblock {
+#editor-root .cm-live-codeblock {
   font-family: 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
   font-size: 0.88em;
   background: var(--editor-code-background);
@@ -430,15 +449,15 @@ body {
   padding-left: 0.9em;
   text-align: left;
 }
-:root[data-align='right'] .cm-live-codeblock,
-:root[data-align='justified'] .cm-live-codeblock {
+:root[data-align='right'] #editor-root .cm-live-codeblock,
+:root[data-align='justified'] #editor-root .cm-live-codeblock {
   text-align: left;
   hyphens: none;
   -webkit-hyphens: none;
 }
 
 /* US-012: the call reads as a raised, smaller numeral — the usual typographic convention for a footnote, without inventing a new one. */
-.cm-live-footnote-ref {
+#editor-root .cm-live-footnote-ref {
   vertical-align: super;
   font-size: 0.75em;
 }
@@ -449,7 +468,7 @@ body {
  * text around it, the same discreet treatment a printed footnote gets at
  * the foot of a page.
  */
-.cm-live-apparatus {
+#editor-root .cm-live-apparatus {
   font-size: 0.85em;
   opacity: 0.75;
 }
@@ -461,7 +480,7 @@ body {
  * fixed 0.35 is illegible on a dark background). The transition is purely
  * cosmetic, not part of any acceptance criterion.
  */
-.cm-live-dim {
+#editor-root .cm-live-dim {
   opacity: var(--editor-dim-opacity);
   transition: opacity 0.15s ease-out;
 }
