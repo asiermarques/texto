@@ -85,7 +85,7 @@ installer.
     through the return value of `activate()`, which is how the integration suite
     reaches a live webview panel. There is no other way to observe a webview
     from outside.
-- **Two levels of tests:**
+- **Three levels of tests:**
   - **Unit (vitest)** for `src/domain/`: the only logic with a pure shape, and
     therefore the only code that deserves real unit tests.
   - **Integration (`@vscode/test-electron` + Mocha)** for everything else: they
@@ -93,6 +93,28 @@ installer.
     end to end — open, type, save, undo, external changes, typography, theme.
     This is the project's e2e suite; there is no browser or backend of our own,
     only one host, VSCode.
+  - **Performance (vitest, `test:performance`, requirement 007)** — a
+    deterministic **Operation count** check, distinct from the first two
+    because its bundle-byte metrics are a property of the build (`dist/`) and
+    not of `src/domain/`. `test/performance/performanceCheck.test.ts` measures
+    full markdown parses per keystroke and per cursor move (`vi.spyOn` on the
+    shared `parser`, no production instrumentation), **Live preview**
+    instructions and **Focus mode** dim ranges (already the pure analysers'
+    return values), and the byte size of both built bundles, all against the
+    same **Chapter** fixture `test/unit/livePreviewLatency.test.ts` uses
+    (`test/fixtures/chapterFixture.ts`). Every metric is compared for exact
+    equality against `test/performance/baseline.json`, committed to the
+    repository: any movement, in either direction, fails the check naming the
+    metric, the baseline value and the observed one, and passes again only
+    once the baseline is updated in the same commit. Nothing here measures
+    elapsed time, which is what lets it resolve a single added parse without
+    ever flaking — `test/unit/livePreviewLatency.test.ts` keeps its separate
+    role as the loose, wall-clock order-of-magnitude guard. `pretest:performance`
+    runs `npm run build` first, so the byte metrics never measure a stale or
+    missing `dist/`. Enforced twice: a versioned pre-commit hook
+    (`.githooks/pre-commit`, enabled via `core.hooksPath`) before the commit
+    exists, and a step in the shared quality gate as the backstop for a
+    skipped or missing hook.
   - The webview cannot be introspected from the test host by any other means, so
     it answers a small test-only message channel (`src/domain/testProtocol.ts`)
     reporting its rendered state (text, gutter, focus, computed styles). It is
@@ -106,9 +128,10 @@ installer.
     exercises the same resolution mechanism; only the persistence location
     differs from a real **Writing space**.
 - **Tag-based release pipeline (GitHub Actions, `.github/workflows/`).**
-  `gate.yml` is a reusable `workflow_call` (typecheck, unit tests, integration
-  tests under `xvfb-run`, `.vscode-test/` cached on the `@vscode/test-electron`
-  version) called by both `ci.yml` (`push`/`pull_request` on `main`, status
+  `gate.yml` is a reusable `workflow_call` (typecheck, unit tests, the
+  performance check, integration tests under `xvfb-run`, `.vscode-test/`
+  cached on the `@vscode/test-electron` version) called by both `ci.yml`
+  (`push`/`pull_request` on `main`, status
   check only, no secrets) and `release.yml` (`push: tags: v*.*.*`). Two
   workflow files sharing one gate definition, not one file with conditional
   jobs, so "does this push/PR pass CI" and "did this tag release

@@ -140,15 +140,20 @@
     }
   },
   "scripts": {
+    "postinstall": "node ./scripts/enableHooks.js",
     "vscode:prepublish": "npm run build",
     "build": "node esbuild.js",
     "watch": "node esbuild.js --watch",
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run",
+    "pretest:performance": "npm run build",
+    "test:performance": "vitest run --config vitest.performance.config.ts",
+    "prereport:performance": "npm run build && npm run compile:test",
+    "report:performance": "node ./out/test/performance/report.js",
     "pretest:integration": "npm run build && npm run compile:test",
     "compile:test": "tsc -p tsconfig.test.json",
     "test:integration": "node ./out/test/integration/runTest.js",
-    "test": "npm run test:unit && npm run test:integration"
+    "test": "npm run test:unit && npm run test:performance && npm run test:integration"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.7",
