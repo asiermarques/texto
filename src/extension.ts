@@ -16,6 +16,8 @@ export interface TextoExtensionApi {
   readonly getWordCountStatusBarState: () => { readonly visible: boolean; readonly text: string };
   /** US-021: same reason, for one of the toolbar's buttons (see `src/domain/editorToolbar.ts` for the valid ids). */
   readonly getToolbarButtonState: (id: string) => { readonly text: string; readonly tooltip: string } | undefined;
+  /** US-002 (008): how many times the Word count total has actually been recomputed for this Chapter — proves the debounce coalesces a burst of keystrokes into one recomputation. */
+  readonly getWordCountRecomputeCount: (uri: vscode.Uri) => number;
 }
 
 export async function activate(context: vscode.ExtensionContext): Promise<TextoExtensionApi> {
@@ -104,6 +106,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<TextoE
     setFocusModeEnabled: (enabled) => WritingEditorProvider.setFocusModeEnabled(enabled),
     getWordCountStatusBarState: () => WritingEditorProvider.getWordCountStatusBarState(),
     getToolbarButtonState: (id) => WritingEditorProvider.getToolbarButtonState(id),
+    getWordCountRecomputeCount: (uri) => WritingEditorProvider.getWordCountRecomputeCount(uri),
   };
 }
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { countWords, countWordsInRange, formatWordCountStatus, type WordCountStrings } from '../../src/domain/wordCount';
+import { countWords, formatWordCountStatus, type WordCountStrings } from '../../src/domain/wordCount';
+import { countWordsInRange } from '../helpers/domainTestHelpers';
 
 describe('countWords — US-020 (F-006): prose, not markdown', () => {
   it('counts an empty Chapter as zero words', () => {

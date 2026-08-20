@@ -1,5 +1,4 @@
-import type { SyntaxNode } from '@lezer/common';
-import { parser } from './markdownParser';
+import type { SyntaxNode, Tree } from '@lezer/common';
 import { type SelectionRange, touches, touchesBlock } from './selectionOverlap';
 
 /**
@@ -72,9 +71,15 @@ function lineBoundsAt(text: string, pos: number): SelectionRange {
  * readings satisfy PD-001 ("revealed only on the cursor's line") for
  * block constructs, which *are* one line, while avoiding the inline case
  * where a single long paragraph would reveal every emphasis in it at once.
+ *
+ * Takes the parse (`tree`) as an input rather than producing it (US-003 of
+ * 008): the tree answers "what construct is this and where does it start",
+ * `text` answers "which characters are inside it" — both stay parameters so
+ * this function never has to reach back for the document itself (AD-002).
+ * Ownership of *producing* the tree belongs to the caller — the webview,
+ * which owns it incrementally (US-004) — not to this pure analyser.
  */
-export function computeLivePreviewInstructions(text: string, selection: SelectionRange): LivePreviewInstruction[] {
-  const tree = parser.parse(text);
+export function computeLivePreviewInstructions(tree: Tree, text: string, selection: SelectionRange): LivePreviewInstruction[] {
   const instructions: LivePreviewInstruction[] = [];
 
   function skipSpaces(from: number, limit: number): number {

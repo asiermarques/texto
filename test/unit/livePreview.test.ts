@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeLivePreviewInstructions } from '../../src/domain/livePreview';
+import { computeLivePreviewInstructions } from '../helpers/domainTestHelpers';
 
 /** A collapsed cursor at `pos`, nowhere near any construct in these fixtures. */
 function cursorAt(pos: number) {

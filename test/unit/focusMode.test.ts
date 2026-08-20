@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeDimmedRanges } from '../../src/domain/focusMode';
+import { computeDimmedRanges } from '../helpers/domainTestHelpers';
 
 function cursorAt(pos: number) {
   return { from: pos, to: pos };

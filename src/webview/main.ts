@@ -5,6 +5,7 @@ import type { ExtensionToWebviewMessage, TextChange, TextSizeDirection, WebviewT
 import type { TestFromWebviewMessage, TestToWebviewMessage } from '../domain/testProtocol';
 import type { TextAlignment } from '../domain/preferences';
 import { countWordsInRange } from '../domain/wordCount';
+import { treeField } from './treeField';
 import { toggleInlineWrap } from '../domain/inlineFormatting';
 import { isLikelyUrl, pasteUrlOverSelection, wrapSelectionAsLink } from '../domain/linkEditing';
 import { computeEnterContinuation } from '../domain/listContinuation';
@@ -52,7 +53,10 @@ let lastReportedSelectionWordCount: number | undefined;
 
 function reportSelectionWordCount(state: EditorState): void {
   const selection = state.selection.main;
-  const count = selection.empty ? 0 : countWordsInRange(state.doc.toString(), selection.from, selection.to);
+  const text = state.doc.toString();
+  // US-004 (008): the same tree livePreviewPlugin.ts/focusModePlugin.ts read
+  // — a selection change with no edit costs no parse (FR-002).
+  const count = selection.empty ? 0 : countWordsInRange(state.field(treeField), text, selection.from, selection.to);
   if (count === lastReportedSelectionWordCount) {
     return;
   }
@@ -243,6 +247,11 @@ function createExtensions(focusModeEnabled: boolean) {
     // then has a single line's worth of it, at the very top, and clicking
     // anywhere else in the window does nothing at all.
     EditorView.cspNonce.of(cspNonce),
+    // US-004 (008): the Chapter's tree, owned as state and updated
+    // incrementally — always on, independent of the two compartments below,
+    // so toggling Raw markdown view never tears it down or forces a full
+    // reparse on the way back.
+    treeField,
     keymap.of(textSizeKeymap),
     keymap.of(formattingKeymap),
     keymap.of(listContinuationKeymap),

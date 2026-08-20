@@ -1,8 +1,10 @@
 {
-  "parsesPerKeystroke": 3,
-  "parsesPerCursorMove": 2,
+  "parsesPerKeystroke": 0,
+  "parsesPerCursorMove": 0,
+  "treeUpdatesPerKeystroke": 1,
+  "treeUpdatesPerCursorMove": 0,
   "livePreviewInstructions": 1913,
   "dimRanges": 433,
-  "extensionBundleBytes": 611110,
-  "webviewBundleBytes": 720124
+  "extensionBundleBytes": 77268,
+  "webviewBundleBytes": 321024
 }

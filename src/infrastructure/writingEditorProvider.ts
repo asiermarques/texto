@@ -50,6 +50,24 @@ export class WritingEditorProvider implements vscode.CustomTextEditorProvider {
   // each panel's own `onDidChangeViewState` — rather than from the usual
   // VSCode editor-focus event.
   private static readonly wordCountBar = new WordCountStatusBar();
+  // US-002 (008): the Chapter total is recomputed at most once per
+  // ~200ms of typing rather than once per keystroke (FR-004/ASM-002) — the
+  // extension host's only work on the hot path, taken off it. `wordCountTotals`
+  // is the last-recomputed total per document, read by every render that
+  // isn't itself a recomputation (a selection change, reactivating a panel);
+  // `pendingWordCountRecompute` is the in-flight trailing-edge timer per
+  // document, cleared and replaced by each new change so only the LAST one
+  // in a burst fires (EDGE-003: dropping the trailing update would leave the
+  // total permanently wrong until the next edit).
+  private static readonly WORD_COUNT_DEBOUNCE_MS = 200;
+  private static readonly wordCountTotals = new Map<string, number>();
+  private static readonly pendingWordCountRecompute = new Map<string, ReturnType<typeof setTimeout>>();
+  // Test-only: how many times countWords has actually run for a document,
+  // so the integration suite can prove a burst of keystrokes recomputes the
+  // total once, not once per keystroke — there is no other way to observe a
+  // recomputation from outside the extension (US-020's `getWordCountStatusBarState`
+  // is the same idea, for the rendered text).
+  private static readonly wordCountRecomputeCounts = new Map<string, number>();
   // US-021 (redesigned on Author feedback): one status bar button per
   // setting, shown/hidden alongside wordCountBar under the same activeUri.
   private static readonly toolbar = new EditorToolbar();
@@ -108,6 +126,11 @@ export class WritingEditorProvider implements vscode.CustomTextEditorProvider {
     return WritingEditorProvider.toolbar.getButtonState(id);
   }
 
+  /** Exposed for the integration suite (US-002 of 008) — proves a burst of keystrokes recomputes the total once, not once per keystroke. */
+  public static getWordCountRecomputeCount(uri: vscode.Uri): number {
+    return WritingEditorProvider.wordCountRecomputeCounts.get(uri.toString()) ?? 0;
+  }
+
   private static setActivePanel(document: vscode.TextDocument): void {
     WritingEditorProvider.activeUri = document.uri.toString();
     WritingEditorProvider.lastActiveUri = WritingEditorProvider.activeUri;
@@ -124,14 +147,56 @@ export class WritingEditorProvider implements vscode.CustomTextEditorProvider {
     WritingEditorProvider.toolbar.hide();
   }
 
+  /** Renders the bar from the last-recomputed total (US-002 of 008) — never itself a recomputation, so a selection change or reactivating a panel costs no parse. */
   private static refreshWordCountStatusBar(document: vscode.TextDocument): void {
     const uriString = document.uri.toString();
     if (WritingEditorProvider.activeUri !== uriString) {
       return;
     }
-    const total = countWords(document.getText());
+    const total = WritingEditorProvider.wordCountTotals.get(uriString) ?? WritingEditorProvider.recomputeWordCountTotal(document);
     const selected = WritingEditorProvider.selectionWordCounts.get(uriString) ?? 0;
     WritingEditorProvider.wordCountBar.show(total, selected);
+  }
+
+  /** The one place `countWords` actually runs (US-002 of 008) — records the result so `refreshWordCountStatusBar` can read it without recomputing. */
+  private static recomputeWordCountTotal(document: vscode.TextDocument): number {
+    const uriString = document.uri.toString();
+    const total = countWords(document.getText());
+    WritingEditorProvider.wordCountTotals.set(uriString, total);
+    WritingEditorProvider.wordCountRecomputeCounts.set(uriString, (WritingEditorProvider.wordCountRecomputeCounts.get(uriString) ?? 0) + 1);
+    return total;
+  }
+
+  /**
+   * FR-004/ASM-002: trailing-edge debounce — each call cancels whichever
+   * recompute was still pending for this document and schedules a fresh
+   * one, so a burst of keystrokes inside ~200ms of each other recomputes the
+   * total exactly once, on the LAST one. EDGE-003 is why this is trailing
+   * (delay-and-coalesce), not leading (ignore-if-too-soon): the latter would
+   * drop the update for the keystroke that ends the burst, leaving the total
+   * permanently wrong until some unrelated later edit.
+   */
+  private static scheduleWordCountRecompute(document: vscode.TextDocument): void {
+    const uriString = document.uri.toString();
+    const pending = WritingEditorProvider.pendingWordCountRecompute.get(uriString);
+    if (pending) {
+      clearTimeout(pending);
+    }
+    const timer = setTimeout(() => {
+      WritingEditorProvider.pendingWordCountRecompute.delete(uriString);
+      WritingEditorProvider.recomputeWordCountTotal(document);
+      WritingEditorProvider.refreshWordCountStatusBar(document);
+    }, WritingEditorProvider.WORD_COUNT_DEBOUNCE_MS);
+    WritingEditorProvider.pendingWordCountRecompute.set(uriString, timer);
+  }
+
+  /** A panel closing (or a Chapter no longer tracked) must not let a pending recompute fire against stale state later. */
+  private static cancelPendingWordCountRecompute(uriString: string): void {
+    const pending = WritingEditorProvider.pendingWordCountRecompute.get(uriString);
+    if (pending) {
+      clearTimeout(pending);
+      WritingEditorProvider.pendingWordCountRecompute.delete(uriString);
+    }
   }
 
   private static refreshToolbar(document: vscode.TextDocument): void {
@@ -274,8 +339,9 @@ export class WritingEditorProvider implements vscode.CustomTextEditorProvider {
       }
       // US-020: the total updates on every change, own edits included — only
       // the externalUpdate message below is limited to changes we didn't
-      // originate.
-      WritingEditorProvider.refreshWordCountStatusBar(document);
+      // originate. US-002 (008): debounced rather than recomputed inline —
+      // see scheduleWordCountRecompute.
+      WritingEditorProvider.scheduleWordCountRecompute(document);
       if (tracker.isOwnChange(event.document.version)) {
         return;
       }
@@ -340,6 +406,11 @@ export class WritingEditorProvider implements vscode.CustomTextEditorProvider {
       WritingEditorProvider.documents.delete(document.uri.toString());
       WritingEditorProvider.selectionWordCounts.delete(document.uri.toString());
       WritingEditorProvider.rawMarkdownStates.delete(document.uri.toString());
+      // US-002 (008): a pending debounced recompute must not fire against a
+      // closed panel's disposed status bar item once this Chapter is gone.
+      WritingEditorProvider.cancelPendingWordCountRecompute(document.uri.toString());
+      WritingEditorProvider.wordCountTotals.delete(document.uri.toString());
+      WritingEditorProvider.wordCountRecomputeCounts.delete(document.uri.toString());
       if (WritingEditorProvider.lastActiveUri === document.uri.toString()) {
         WritingEditorProvider.lastActiveUri = undefined;
       }

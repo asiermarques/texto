@@ -1,4 +1,4 @@
-import { parser } from './markdownParser';
+import type { Tree } from '@lezer/common';
 import { distance, type SelectionRange, touchesBlock } from './selectionOverlap';
 
 /**
@@ -11,9 +11,14 @@ import { distance, type SelectionRange, touchesBlock } from './selectionOverlap'
  * whole work then would blank the writing surface every time the author opens
  * a new paragraph, so the nearest block (the preceding one on a tie) keeps the
  * focus instead.
+ *
+ * Takes the parse (`tree`) as an input rather than producing it (US-003 of
+ * 008) — same split as `computeLivePreviewInstructions`, for the same
+ * reason, and the same uniform (tree, text, …) shape every analyser takes
+ * even though this one, working only off block boundaries, has no
+ * characters of its own to read out of `_text`.
  */
-export function computeDimmedRanges(text: string, selection: SelectionRange): SelectionRange[] {
-  const tree = parser.parse(text);
+export function computeDimmedRanges(tree: Tree, _text: string, selection: SelectionRange): SelectionRange[] {
   const blocks: SelectionRange[] = [];
 
   let block = tree.topNode.firstChild;

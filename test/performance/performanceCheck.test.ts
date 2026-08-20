@@ -22,6 +22,16 @@ import baseline from './baseline.json';
  * widening `test:unit`'s `include`. `pretest:performance` (package.json)
  * runs `npm run build` first, so this test never measures a stale or
  * missing `dist/`.
+ *
+ * `extensionBundleBytes`/`webviewBundleBytes` measure the *minified*
+ * release build since US-005 of requirement 008 (`esbuild.js`'s production
+ * mode, used by `npm run build`) — measuring what actually ships, rather
+ * than the unminified `npm run watch` output. RISK-003, accepted
+ * deliberately: an esbuild version bump can shift the minifier's output and
+ * turn either metric red for a reason that isn't a regression in this
+ * project's own code. That is a legitimate reason to re-baseline (confirm
+ * the diff is explained by the esbuild version, not by an accidental
+ * dependency creeping back in), not a reason to loosen the check.
  */
 const measured = measureOperationCounts();
 
