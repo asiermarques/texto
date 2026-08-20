@@ -43,6 +43,13 @@ jobs:
       - name: Unit tests
         run: npm run test:unit
 
+      - name: Performance check (Operation count vs baseline)
+        # Builds dist/ itself (pretest:performance) — this is the backstop
+        # for a skipped or missing pre-commit hook (.githooks/pre-commit);
+        # a regression here fails both ci.yml and release.yml, since both
+        # call this reusable gate.
+        run: npm run test:performance
+
       - name: Integration tests
         # @vscode/test-electron boots a real VSCode, which needs a display.
         run: xvfb-run --auto-servernum npm run test:integration

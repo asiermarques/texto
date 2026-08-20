@@ -60,6 +60,16 @@ already had.
 | **Writing space** | Directory configured so its markdown files open in the **Writing editor**. | Espacio de escritura | Writing space | Workspace, novel repo |
 | **Interface language** | The language the **Writing editor**'s own strings — settings, commands, menus, the status bar toolbar and the **Word count** — are presented in. Follows VSCode's own display language: Spanish when it is Spanish (any region, `es`/`es-ES`/`es-419`…), English otherwise. | — | — | A `texto.*` preference (BR-001: it is not resolvable per **Writing space** the way preferences are); the language of the **Work**, which this never touches (`<html lang>` stays `es`, independent of this) |
 
+## Quality tooling
+
+Vocabulary for the project's own build and test tooling — never surfaced to
+the **Author** as a **Writing editor** user, so these carry no UI wording.
+
+| Term | Definition | UI wording (ES) | UI wording (EN) | Avoid |
+| --- | --- | --- | --- | --- |
+| **Operation count** | A deterministic count — full markdown parses, **Tree update**s, **Live preview** instructions, **Focus mode** dim ranges, built-bundle bytes — compared for exact equality against a baseline committed to the repository, on every commit (requirement 007). | — | — | Work counter (collides with **Work**), benchmark, metric (too generic once **Operation count** is the specific term) |
+| **Tree update** | One of the **Operation count** metrics (requirement 008): a reparse that reused a previous parse's unaffected parts (`TreeFragment.applyChanges`) instead of parsing the whole **Chapter** again. The healthy value is exactly one per keystroke and zero per cursor move — a full parse appearing on either path (the metric beside it in the baseline) is the regression this pair of counts exists to catch. | — | — | Incremental parse (describes the mechanism, not the counted quantity), reparse |
+
 ## People
 
 | Term | Definition | UI wording (ES) | UI wording (EN) | Avoid |

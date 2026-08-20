@@ -527,13 +527,22 @@ loaded from source.
 ## Tests
 
 ```sh
-npm run test:unit         # vitest — the pure logic in src/domain
-npm run test:integration  # @vscode/test-electron — a real VSCode, end to end
-npm test                  # both
+npm run test:unit          # vitest — the pure logic in src/domain
+npm run test:performance   # vitest — Operation count + bundle bytes vs a committed baseline
+npm run report:performance # prints current measurements next to the baseline; writes nothing
+npm run test:integration   # @vscode/test-electron — a real VSCode, end to end
+npm test                   # all three
 ```
 
 The first `test:integration` run downloads a copy of VSCode into
 `.vscode-test/` (not distributed, only used to run the tests).
+
+`test:performance` builds first and compares a handful of deterministic
+metrics (full parses per keystroke and per cursor move, decorations built,
+bundle bytes) against `test/performance/baseline.json`, failing on any
+difference — a regression or an unrecorded improvement alike. It also runs
+from a versioned pre-commit hook (enabled automatically on `npm install`)
+and as a step in CI, so a skipped hook still gets caught.
 
 `TEXTO_TEST_FILTER=<substring> npm run test:integration` runs only the
 integration files whose name contains `<substring>` — faster than a full

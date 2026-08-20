@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Requirement 007 (US-003): refuses the commit if the Operation count check
+# moved against test/performance/baseline.json. Enabled repo-wide through
+# `core.hooksPath` (scripts/enableHooks.js, run on `npm install`) rather than
+# a new dependency — versioned here so every clone gets the same hook.
+#
+# Kept to this one check by design: it builds (byte metrics need `dist/`)
+# and runs a single vitest file, ~1.5s against the gate's ~1m13s. It is the
+# fast signal, not the guarantee — `git commit --no-verify` bypasses it, and
+# the shared quality gate (.github/workflows/gate.yml) is what cannot be
+# skipped.
+set -euo pipefail
+
+if ! npm run --silent test:performance; then
+  echo "" >&2
+  echo "Pre-commit performance check failed (see the metric above)." >&2
+  echo "Fix the regression, or record it deliberately by updating" >&2
+  echo "test/performance/baseline.json in this same commit." >&2
+  exit 1
+fi

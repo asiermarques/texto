@@ -1,6 +1,7 @@
 import { type Range, RangeSet } from '@codemirror/state';
 import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate } from '@codemirror/view';
 import { computeLivePreviewInstructions } from '../domain/livePreview';
+import { treeField } from './treeField';
 
 /**
  * Turns the pure `computeLivePreviewInstructions` output into real
@@ -30,7 +31,10 @@ class LivePreviewState {
 function build(view: EditorView): { decorations: DecorationSet; atomicRanges: RangeSet<Decoration> } {
   const text = view.state.doc.toString();
   const selection = view.state.selection.main;
-  const instructions = computeLivePreviewInstructions(text, { from: selection.from, to: selection.to });
+  // US-004 (008): the tree the Writing surface already owns as state,
+  // updated incrementally — not re-parsed here.
+  const tree = view.state.field(treeField);
+  const instructions = computeLivePreviewInstructions(tree, text, { from: selection.from, to: selection.to });
   const decoRanges: Range<Decoration>[] = [];
   const atomicRangeList: Range<Decoration>[] = [];
 

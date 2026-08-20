@@ -83,6 +83,18 @@ technical decisions were.
   of **Inline code** and **Task** in non-fiction rendering as raw syntax. This
   does not widen "Who it is for": it is still the Author's own writing, in
   whichever of the two shapes it takes.
+- **PD-008 — Performance is guarded per commit, deterministically, not felt
+  and not timed.** Every commit answers whether the cost of one keystroke in
+  a **Chapter** moved, via **Operation count** metrics (full parses, **Live
+  preview** instructions, **Focus mode** dim ranges, built-bundle bytes)
+  compared for exact equality against a baseline committed to the repository
+  (`test/performance/baseline.json`) — never via wall-clock timing, which a
+  shared CI runner makes noisy enough to hide the regressions that matter
+  (`docs/adr/0002-deterministic-performance-baseline-per-commit.md`). *Why:*
+  PD-002 makes a slow **Writing surface** a product failure, not a technical
+  detail, and three full parses per keystroke had already accumulated
+  unnoticed (`docs/adr/0001-incremental-shared-parse-and-lean-host-bundle.md`)
+  before anything was watching.
 
 ## MVP scope
 

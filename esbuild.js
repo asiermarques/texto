@@ -61,6 +61,14 @@ function copyMediaAssets() {
 }
 
 async function main() {
+  // US-005 (008): `npm run build` (and therefore `vscode:prepublish` and the
+  // release pipeline) ships minified, source-map-free bundles — half the
+  // JavaScript for V8 to parse at activation and at every panel open.
+  // `npm run watch`, used while developing, keeps today's unminified,
+  // source-mapped output, so debugging stays unchanged. RISK-003: the byte
+  // metrics in test/performance/baseline.json now track the minifier's
+  // output as well as the code — an esbuild version bump can move them for a
+  // reason that isn't a regression, and that's accepted deliberately.
   const extensionCtx = await esbuild.context({
     entryPoints: ['src/extension.ts'],
     bundle: true,
@@ -69,7 +77,8 @@ async function main() {
     target: 'node18',
     format: 'cjs',
     external: ['vscode'],
-    sourcemap: true,
+    sourcemap: watch,
+    minify: !watch,
     logLevel: 'info',
   });
 
@@ -80,7 +89,8 @@ async function main() {
     platform: 'browser',
     target: 'es2020',
     format: 'iife',
-    sourcemap: true,
+    sourcemap: watch,
+    minify: !watch,
     logLevel: 'info',
   });
 

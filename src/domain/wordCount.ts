@@ -1,4 +1,4 @@
-import type { SyntaxNode } from '@lezer/common';
+import type { SyntaxNode, Tree } from '@lezer/common';
 import { parser } from './markdownParser';
 
 /**
@@ -35,13 +35,24 @@ const MARKER_TYPES = new Set([
   'LinkReference',
 ]);
 
+/**
+ * Text-only convenience wrapper (US-003 of 008): the host
+ * (`writingEditorProvider.ts`) has only the document's text, not a tree it
+ * already owns, so this is the one place in `src/domain/` that still calls
+ * `parser.parse` itself.
+ */
 export function countWords(text: string): number {
-  return countWordsInRange(text, 0, text.length);
+  return countWordsInRange(parser.parse(text), text, 0, text.length);
 }
 
-/** Same rules as `countWords`, restricted to the `[from, to)` slice — used for the Author's current selection. */
-export function countWordsInRange(text: string, from: number, to: number): number {
-  const prose = extractProseText(text, from, to);
+/**
+ * Same rules as `countWords`, restricted to the `[from, to)` slice — used
+ * for the Author's current selection. Takes the parse (`tree`) as an input
+ * rather than producing it (US-003 of 008) — same split as
+ * `computeLivePreviewInstructions`, for the same reason.
+ */
+export function countWordsInRange(tree: Tree, text: string, from: number, to: number): number {
+  const prose = extractProseText(tree, text, from, to);
   return prose.split(/\s+/).filter((token) => token.length > 0).length;
 }
 
@@ -53,8 +64,7 @@ export function countWordsInRange(text: string, from: number, to: number): numbe
  * rather than collecting "real text" nodes, this collects the marker spans
  * to CUT OUT, and the prose is everything else — the same trick, generalised.
  */
-function collectMarkerRanges(text: string, from: number, to: number): Array<readonly [number, number]> {
-  const tree = parser.parse(text);
+function collectMarkerRanges(tree: Tree, from: number, to: number): Array<readonly [number, number]> {
   const ranges: Array<readonly [number, number]> = [];
 
   function visit(node: SyntaxNode): void {
@@ -76,8 +86,8 @@ function collectMarkerRanges(text: string, from: number, to: number): Array<read
   return ranges;
 }
 
-function extractProseText(text: string, from: number, to: number): string {
-  const ranges = [...collectMarkerRanges(text, from, to)].sort((a, b) => a[0] - b[0]);
+function extractProseText(tree: Tree, text: string, from: number, to: number): string {
+  const ranges = [...collectMarkerRanges(tree, from, to)].sort((a, b) => a[0] - b[0]);
   let result = '';
   let cursor = from;
   for (const [rangeFrom, rangeTo] of ranges) {

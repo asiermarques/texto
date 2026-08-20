@@ -85,7 +85,7 @@ installer.
     through the return value of `activate()`, which is how the integration suite
     reaches a live webview panel. There is no other way to observe a webview
     from outside.
-- **Two levels of tests:**
+- **Three levels of tests:**
   - **Unit (vitest)** for `src/domain/`: the only logic with a pure shape, and
     therefore the only code that deserves real unit tests.
   - **Integration (`@vscode/test-electron` + Mocha)** for everything else: they
@@ -93,6 +93,32 @@ installer.
     end to end — open, type, save, undo, external changes, typography, theme.
     This is the project's e2e suite; there is no browser or backend of our own,
     only one host, VSCode.
+  - **Performance (vitest, `test:performance`, requirement 007, extended by
+    008)** — a deterministic **Operation count** check, distinct from the
+    first two because its bundle-byte metrics are a property of the build
+    (`dist/`) and not of `src/domain/`. `test/performance/performanceCheck.test.ts`
+    measures full markdown parses and **Tree update**s per keystroke and per
+    cursor move (wrapping the shared `parser`'s own `parse` method and
+    counting calls, split by whether fragments travelled with them — no
+    production instrumentation — against a real `EditorState` holding
+    `src/webview/treeField.ts`'s incremental `StateField`), **Live preview**
+    instructions and **Focus mode** dim ranges (already the pure analysers'
+    return values), and the byte size of both built (and, since 008,
+    minified) bundles, all against the same **Chapter** fixture
+    `test/unit/livePreviewLatency.test.ts` uses
+    (`test/fixtures/chapterFixture.ts`). Every metric is compared for exact
+    equality against `test/performance/baseline.json`, committed to the
+    repository: any movement, in either direction, fails the check naming the
+    metric, the baseline value and the observed one, and passes again only
+    once the baseline is updated in the same commit. Nothing here measures
+    elapsed time, which is what lets it resolve a single added parse without
+    ever flaking — `test/unit/livePreviewLatency.test.ts` keeps its separate
+    role as the loose, wall-clock order-of-magnitude guard. `pretest:performance`
+    runs `npm run build` first, so the byte metrics never measure a stale or
+    missing `dist/`. Enforced twice: a versioned pre-commit hook
+    (`.githooks/pre-commit`, enabled via `core.hooksPath`) before the commit
+    exists, and a step in the shared quality gate as the backstop for a
+    skipped or missing hook.
   - The webview cannot be introspected from the test host by any other means, so
     it answers a small test-only message channel (`src/domain/testProtocol.ts`)
     reporting its rendered state (text, gutter, focus, computed styles). It is
@@ -106,9 +132,10 @@ installer.
     exercises the same resolution mechanism; only the persistence location
     differs from a real **Writing space**.
 - **Tag-based release pipeline (GitHub Actions, `.github/workflows/`).**
-  `gate.yml` is a reusable `workflow_call` (typecheck, unit tests, integration
-  tests under `xvfb-run`, `.vscode-test/` cached on the `@vscode/test-electron`
-  version) called by both `ci.yml` (`push`/`pull_request` on `main`, status
+  `gate.yml` is a reusable `workflow_call` (typecheck, unit tests, the
+  performance check, integration tests under `xvfb-run`, `.vscode-test/`
+  cached on the `@vscode/test-electron` version) called by both `ci.yml`
+  (`push`/`pull_request` on `main`, status
   check only, no secrets) and `release.yml` (`push: tags: v*.*.*`). Two
   workflow files sharing one gate definition, not one file with conditional
   jobs, so "does this push/PR pass CI" and "did this tag release
@@ -188,13 +215,24 @@ installer.
   calibrated per theme too: a flat `opacity: 0.35`, fine over VSCode's own
   background, reads as *gone* rather than dimmed over some dark themes — the
   bug report this whole feature answers.
-- **Live preview: an analyser separate from `EditorState`.**
-  `src/domain/livePreview.ts` parses the text with the `@codemirror/lang-markdown`
-  parser independently of the editor's `EditorState` (it is not installed as
-  language support) and returns pure instructions (`hide` / `mark` / `line`).
-  `src/webview/livePreviewPlugin.ts` turns those into real `Decoration`s and
-  `EditorView.atomicRanges` on every document or selection change. This split is
-  what makes the behaviour testable with vitest, without a DOM.
+- **Live preview: an analyser separate from `EditorState`, handed a tree it
+  does not produce (requirement 008).** `src/domain/livePreview.ts` takes an
+  already-parsed `Tree` and the text it came from, and returns pure
+  instructions (`hide` / `mark` / `line`); it does not call the parser itself
+  (US-003) and is not installed as CodeMirror language support, so this stays
+  independent of the editor's `EditorState`. Producing the tree — the one
+  impure part — belongs to `src/webview/treeField.ts` (US-004): a
+  `StateField<Tree>` updated incrementally per transaction
+  (`TreeFragment.applyChanges` + `parser.parse(text, fragments)`, ADR 0001),
+  reusing everything an edit didn't touch instead of re-parsing the whole
+  **Chapter**. `src/webview/livePreviewPlugin.ts` and `focusModePlugin.ts`
+  both read `state.field(treeField)` — one tree, two readers — and turn the
+  instructions into real `Decoration`s and `EditorView.atomicRanges` on every
+  document or selection change; a selection-only change costs no parse at
+  all, since `treeField` leaves the tree untouched when `docChanged` is
+  false. This split is what makes the analysis testable with vitest, without
+  a DOM: a unit test builds a tree directly (`parser.parse(text)`) and hands
+  it in, same as `src/webview/` does, just not incrementally.
   - **Reveal granularity differs by construct.** Emphasis (bold/italic) is
     revealed when the selection touches the *content* between markers, not the
     whole physical line: revealing by line would leave markers visible right
@@ -231,25 +269,34 @@ installer.
   fought hard to get right for hidden markers. `docs/UBIQUITOUS_LANGUAGE.md`
   calls the whole set the **Composed subset**.
 - **One parser configuration, shared by every traversal (requirement
-  006).** `src/domain/markdownParser.ts` exports the single `MarkdownParser`
-  instance (`markdownLanguage.parser` configured with the Footnote
-  extension, `footnotes.ts`) that `livePreview.ts`, `focusMode.ts` and
-  `wordCount.ts` all call `.parse(text)` on — previously each imported
-  `markdownLanguage` and parsed independently. `footnotes.ts` is BR-003's one
-  new dependency (`@lezer/markdown`, already transitive through
-  `@codemirror/lang-markdown`, now a direct one): a hand-written
-  `parseInline`/`parseBlock` extension, not a second markdown implementation
-  (ASM-003) — `[^label]` reuses the exact "two marks bounding content" shape
-  `StrongEmphasis` already has, so it composes through the same
-  `INLINE_MARK_NODES` table with no new code in `livePreview.ts`'s
+  006, reconfigured by requirement 008).** `src/domain/markdownParser.ts`
+  exports the single `MarkdownParser` instance that `livePreview.ts`,
+  `focusMode.ts` and `wordCount.ts` all parse (or are handed a tree parsed)
+  with. Built from `@lezer/markdown`'s own base `parser`, `.configure`d with
+  `[GFM, Subscript, Superscript, Emoji, footnoteExtension]` — the same
+  extension set `@codemirror/lang-markdown`'s `markdownLanguage.parser`
+  applies internally, verified node-for-node by
+  `test/unit/markdownParser.test.ts` (US-001, RISK-002) — rather than built
+  *from* `markdownLanguage.parser`, which would drag `@codemirror/language`,
+  `@codemirror/view` and `@codemirror/state` into `dist/extension.js` for a
+  bundle whose only use for them was counting words. This project now owns
+  the extension list instead of inheriting it from that package.
+  `footnotes.ts` is BR-003's one new dependency (`@lezer/markdown`, already
+  transitive through `@codemirror/lang-markdown`, now a direct one): a
+  hand-written `parseInline`/`parseBlock` extension, not a second markdown
+  implementation (ASM-003) — `[^label]` reuses the exact "two marks bounding
+  content" shape `StrongEmphasis` already has, so it composes through the
+  same `INLINE_MARK_NODES` table with no new code in `livePreview.ts`'s
   traversal; `[^label]: text` is deliberately single-line only (no
   multi-paragraph footnote content), matching PD-005's "one Paragraph, one
   line" grain instead of fighting it. RISK-001's mitigation — one parse
   shared *between the two view plugins*, not just one parser instance shared
-  across call sites — was measured and not needed (US-017,
-  `test/unit/livePreviewLatency.test.ts`): a chapter-length Chapter using
-  every construct this requirement added stays well inside budget with two
-  full re-parses per keystroke.
+  across call sites — was measured at three chapter lengths (US-017,
+  `test/unit/livePreviewLatency.test.ts`) and found *not* to hold at the
+  lengths an Author actually writes (11k, 28k words): requirement 008 takes
+  it, owning an incrementally-updated tree in the webview instead of
+  re-parsing per traversal — see "Live preview: an analyser separate from
+  `EditorState`" below.
 - **Preferences are VSCode settings, applied live (US-015).** Every Editor de
   escritura preference is declared under `contributes.configuration` in
   `package.json`, prefixed `texto.` (e.g. `texto.focusMode`, `texto.theme`,
