@@ -46,15 +46,18 @@ suite("US-004: the editor's own typography and measure", () => {
     const panel = await openInWritingEditor(fileUri);
     const snapshot = await requestSnapshot(panel);
 
-    assert.notStrictEqual(snapshot.style.rootMaxWidth, 'none');
-    const maxWidthPx = parseFloat(snapshot.style.rootMaxWidth);
-    assert.ok(maxWidthPx > 0 && maxWidthPx < 1200, `max-width outside the range expected of a reading measure: ${snapshot.style.rootMaxWidth}`);
+    const columnWidth = snapshot.contentBox.right - snapshot.contentBox.left;
+    const windowWidth = snapshot.scrollerBox.right - snapshot.scrollerBox.left;
+    assert.ok(columnWidth < windowWidth, `the column fills the whole width: ${columnWidth}px of ${windowWidth}px`);
+    assert.ok(columnWidth > 0 && columnWidth < 1200, `the column is outside the range expected of a reading measure: ${columnWidth}px`);
   });
 
   test('the column stays centred', async () => {
     const panel = await openInWritingEditor(fileUri);
     const snapshot = await requestSnapshot(panel);
 
-    assert.strictEqual(snapshot.style.bodyJustifyContent, 'center');
+    const leftGutter = snapshot.contentBox.left - snapshot.scrollerBox.left;
+    const rightGutter = snapshot.scrollerBox.right - snapshot.contentBox.right;
+    assert.ok(Math.abs(leftGutter - rightGutter) < 2, `the column is off centre: ${leftGutter}px of gutter on the left, ${rightGutter}px on the right`);
   });
 });

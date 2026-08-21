@@ -53,10 +53,13 @@ export interface EditorSnapshot {
     readonly lineHeight: string;
     readonly color: string;
     readonly backgroundColor: string;
-    readonly rootMaxWidth: string;
-    readonly bodyJustifyContent: string;
-    /** US-014 (F-003): the bottom cushion that lets the last line rise off the window's edge. */
-    readonly rootPaddingBottom: string;
+    /**
+     * US-014 (F-003): the bottom cushion that lets the last line rise off the
+     * window's edge. It lives on `.cm-content`, inside the scroller, not on
+     * #editor-root — where it only shrank the editor and could not be
+     * scrolled to.
+     */
+    readonly contentPaddingBottom: string;
     /** US-014 (F-005): typographic detail Literata offers beyond the bare defaults. */
     readonly fontVariantLigatures: string;
     readonly fontVariantNumeric: string;
@@ -94,8 +97,21 @@ export interface EditorSnapshot {
      */
     readonly visualLines: readonly { readonly top: number; readonly left: number; readonly right: number }[];
   }[];
-  /** The content box every visual line above is measured against (US-019). */
+  /**
+   * The text column every visual line above is measured against (US-019):
+   * contentDOM's box minus its own horizontal padding, which is where the
+   * measure lives. Measured, not read off a CSS declaration, so it stays
+   * true to what the Author sees however the measure is expressed.
+   */
   readonly contentBox: { readonly left: number; readonly right: number };
+  /**
+   * The scrolling box (`.cm-scroller`) and the window it sits in. The two
+   * together are what says whether the scrollbar rides the window's edge or
+   * is glued to the prose: the scroller carries the scrollbar, so it has to
+   * span the window, with the measure inset from it rather than narrowing it.
+   */
+  readonly scrollerBox: { readonly left: number; readonly right: number };
+  readonly viewportWidth: number;
   /**
    * The Writing surface measured two ways: `visibleHeight` is the box the
    * Author sees (`.cm-editor`), `clickableHeight` the box that actually
@@ -107,7 +123,12 @@ export interface EditorSnapshot {
    * nearest position and answers happily for a point no click could ever
    * deliver.
    */
-  readonly writingSurface: { readonly visibleHeight: number; readonly clickableHeight: number };
+  readonly writingSurface: {
+    readonly visibleHeight: number;
+    readonly clickableHeight: number;
+    /** `window.innerHeight` — what `visibleHeight` is expected to fill. */
+    readonly viewportHeight: number;
+  };
 }
 
 import type { TextChange, TextSizeDirection } from './textChange';

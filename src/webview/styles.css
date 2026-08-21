@@ -86,31 +86,30 @@ body {
 }
 
 body {
-  display: flex;
-  justify-content: center;
   background: var(--editor-background);
 }
 
+/*
+ * The full window, with no air of its own: every inset of the writing
+ * surface —the measure to the sides, the air above, the cushion below— is
+ * padding on `.cm-content`, inside the scroller. Padding here instead would
+ * come out of the editor's own box (this is a 100%-tall block whose
+ * `.cm-editor` is `height: 100%`) and leave the Chapter ending halfway down
+ * the window; and a `max-width` here would narrow the scroller itself, so
+ * its scrollbar would ride the edge of the text instead of the edge of the
+ * window.
+ *
+ * US-018 (F-004): the font-size stays here, and it is what the measure's
+ * `em` below resolves against — the element's OWN font-size, not the
+ * document root's. `rem` would anchor it to a value the text size setting
+ * never touches, so agrandar el texto encogía la medida de ~68 a ~45
+ * caracteres por línea.
+ */
 #editor-root {
   box-sizing: border-box;
   width: 100%;
-  /*
-   * US-018 (F-004): the measure is set here on the element's OWN font-size
-   * (below), not on the document root's — `rem` would anchor it to a value
-   * the text size setting never touches, so agrandar el texto encogía la
-   * medida de ~68 a ~45 caracteres por línea. In `em` against this
-   * font-size, the column grows with the text and the characters per line
-   * stay put. ~68ch of Literata prose at the factory size.
-   */
+  height: 100%;
   font-size: var(--editor-font-size);
-  max-width: 38em;
-  padding: 4rem 1.5rem;
-  /*
-   * F-003: a generous bottom cushion, about half a screen, so that the last
-   * line of a long Chapter can rise to the middle of the window instead of
-   * being written against the bottom edge.
-   */
-  padding-bottom: 50vh;
 }
 
 #editor-root .cm-editor {
@@ -156,6 +155,10 @@ body {
 /* F-008: the scrollbar in keeping with the palette, not VSCode's. */
 #editor-root .cm-scroller::-webkit-scrollbar {
   width: 12px;
+  /* Explicit: without it the bar falls back to the UA's own ground, which is
+     black whenever VSCode hands the webview a dark `color-scheme` —a dark
+     rail down the middle of the paper palette. */
+  background: transparent;
 }
 #editor-root .cm-scroller::-webkit-scrollbar-track {
   background: transparent;
@@ -168,8 +171,31 @@ body {
   background: var(--editor-scrollbar-thumb-hover);
 }
 
+/*
+ * Every inset of the writing surface, in one declaration, and all of it
+ * inside the scroller:
+ *
+ * - Sideways, the measure (US-004, F-004). ~68ch of Literata prose at the
+ *   factory size, in `em` so the column grows with the text size and the
+ *   characters per line stay put, centred by the two equal paddings, and
+ *   never below a 1.5rem gutter on a window narrower than the measure.
+ *   Padding rather than a `max-width` plus `margin: auto`, and on
+ *   `.cm-content` rather than on the column above, for two reasons: the
+ *   scroller then spans the whole window, so its scrollbar rides the
+ *   window's right edge instead of sitting glued to the prose; and padding
+ *   —unlike a margin— is part of contentDOM, so a click out in the left or
+ *   right margin still lands in the Chapter. `.cm-content` is `border-box`
+ *   in CodeMirror's base theme, so the percentage padding takes the width
+ *   out of the line rather than adding to it.
+ * - Above, the opening air.
+ * - Below, F-003's generous cushion, about half a screen, so the last line
+ *   of a long Chapter can rise to the middle of the window instead of being
+ *   written against the bottom edge. Inside the scroller it scrolls with the
+ *   prose; on #editor-root (where it used to be) it only shrank the editor,
+ *   and no amount of scrolling could reach it.
+ */
 #editor-root .cm-content {
-  padding: 0;
+  padding: 4rem max(1.5rem, (100% - 38em) / 2) 50vh;
   caret-color: var(--editor-cursor);
 }
 

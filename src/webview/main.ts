@@ -300,7 +300,6 @@ window.addEventListener('message', (event: MessageEvent<ExtensionToWebviewMessag
     if (message.type === 'snapshot') {
       const contentStyle = getComputedStyle(view.contentDOM);
       const bodyStyle = getComputedStyle(document.body);
-      const rootStyle = getComputedStyle(root);
       const liveClassSet = new Set<string>();
       root.querySelectorAll('[class*="cm-live-"]').forEach((el) => {
         el.classList.forEach((c) => {
@@ -334,6 +333,13 @@ window.addEventListener('message', (event: MessageEvent<ExtensionToWebviewMessag
         return [...rows.values()].sort((a, b) => a.top - b.top);
       };
       const contentRect = view.contentDOM.getBoundingClientRect();
+      // The text column, not contentDOM's own rectangle: the measure is the
+      // element's horizontal padding, so the rectangle spans the window.
+      const textColumn = {
+        left: contentRect.left + (parseFloat(contentStyle.paddingLeft) || 0),
+        right: contentRect.right - (parseFloat(contentStyle.paddingRight) || 0),
+      };
+      const scrollerRect = view.scrollDOM.getBoundingClientRect();
       const lineRects = Array.from(root.querySelectorAll('.cm-line'), (el) => {
         const rect = el.getBoundingClientRect();
         const lineStyle = getComputedStyle(el);
@@ -378,9 +384,7 @@ window.addEventListener('message', (event: MessageEvent<ExtensionToWebviewMessag
           lineHeight: contentStyle.lineHeight,
           color: contentStyle.color,
           backgroundColor: bodyStyle.backgroundColor,
-          rootMaxWidth: rootStyle.maxWidth,
-          bodyJustifyContent: bodyStyle.justifyContent,
-          rootPaddingBottom: rootStyle.paddingBottom,
+          contentPaddingBottom: contentStyle.paddingBottom,
           fontVariantLigatures: contentStyle.fontVariantLigatures,
           fontVariantNumeric: contentStyle.fontVariantNumeric,
           textRendering: contentStyle.textRendering,
@@ -389,10 +393,13 @@ window.addEventListener('message', (event: MessageEvent<ExtensionToWebviewMessag
           hyphens: contentStyle.getPropertyValue('-webkit-hyphens') || contentStyle.getPropertyValue('hyphens'),
         },
         lineRects,
-        contentBox: { left: contentRect.left, right: contentRect.right },
+        contentBox: textColumn,
+        scrollerBox: { left: scrollerRect.left, right: scrollerRect.right },
+        viewportWidth: window.innerWidth,
         writingSurface: {
           visibleHeight: editorEl ? editorEl.getBoundingClientRect().height : 0,
           clickableHeight: contentRect.height,
+          viewportHeight: window.innerHeight,
         },
       };
       vscodeApi.postMessage(snapshot);

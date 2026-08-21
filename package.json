@@ -3,7 +3,7 @@
   "publisher": "asiermarques",
   "displayName": "Texto",
   "description": "A minimalist writing editor for markdown, inside VSCode.",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "license": "MIT",
   "icon": "media/icon.png",
   "repository": {

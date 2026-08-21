@@ -68,13 +68,33 @@ suite('US-014: air and typographic detail', () => {
     assert.strictEqual(headingAfter!.top, headingBefore!.top, 'the heading shifted when the cursor entered its line');
   });
 
+  /*
+   * The regression this guards: the cushion below and the air above used to
+   * be padding on #editor-root, a flex item stretched to a 100%-tall body,
+   * so they came out of the editor's own box instead of cushioning it —
+   * `.cm-editor { height: 100% }` measured barely half the window, and the
+   * Chapter ended mid-screen with a scrollbar hanging beside the text. The
+   * air now lives on `.cm-content`, inside the scroller, where it scrolls
+   * with the prose.
+   */
+  test('the Writing surface fills the window, top to bottom', async () => {
+    fileUri = await createScratchFile('Un párrafo cualquiera.');
+    const panel = await openInWritingEditor(fileUri);
+    const { writingSurface } = await requestSnapshot(panel);
+
+    assert.ok(
+      writingSurface.visibleHeight >= writingSurface.viewportHeight - 2,
+      `the Writing surface is ${writingSurface.visibleHeight}px tall in a ${writingSurface.viewportHeight}px window`
+    );
+  });
+
   test('the writing column has a generous bottom cushion, about half a screen', async () => {
     fileUri = await createScratchFile('Un párrafo cualquiera.');
     const panel = await openInWritingEditor(fileUri);
     const snapshot = await requestSnapshot(panel);
 
-    const paddingBottomPx = parseFloat(snapshot.style.rootPaddingBottom);
-    assert.ok(paddingBottomPx > 150, `the bottom cushion is too small: ${snapshot.style.rootPaddingBottom}`);
+    const paddingBottomPx = parseFloat(snapshot.style.contentPaddingBottom);
+    assert.ok(paddingBottomPx > 150, `the bottom cushion is too small: ${snapshot.style.contentPaddingBottom}`);
   });
 
   test("the composition uses the font's ligatures and figures, smoothing and text-rendering", async () => {
@@ -94,6 +114,7 @@ suite('US-014: air and typographic detail', () => {
     const snapshot = await requestSnapshot(panel);
 
     assert.ok(snapshot.style.fontFamily.includes('Literata'));
-    assert.notStrictEqual(snapshot.style.rootMaxWidth, 'none');
+    const columnWidth = snapshot.contentBox.right - snapshot.contentBox.left;
+    assert.ok(columnWidth > 0 && columnWidth < 1200, `the column is outside the reading measure range: ${columnWidth}px`);
   });
 });
