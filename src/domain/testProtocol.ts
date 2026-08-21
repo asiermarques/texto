@@ -88,6 +88,16 @@ export interface EditorSnapshot {
     readonly textAlign: string;
     readonly liveClasses: readonly string[];
     /**
+     * The rules a Table is set with (US-001 of 009, refined): ruled at the
+     * top, under the Header row and at the bottom, nowhere else. They sit on
+     * the Row rather than on its Cells so that one rule is one unbroken
+     * line, whatever the Cells above it do.
+     */
+    readonly borderTopWidth: number;
+    readonly borderBottomWidth: number;
+    /** The Row's own width — a Table is as wide as it needs to be, no wider. */
+    readonly width: number;
+    /**
      * US-019: one entry per *visual* line the paragraph wraps into, measured
      * off a DOM Range rather than off the element (a wrapped paragraph is a
      * single `.cm-line` box that always spans the full measure, so its own
@@ -96,6 +106,31 @@ export interface EditorSnapshot {
      * straightens the right edge instead of merely computing to `justify`.
      */
     readonly visualLines: readonly { readonly top: number; readonly left: number; readonly right: number }[];
+  }[];
+  /**
+   * US-001/US-002 of 009: one entry per composed Cell. The grid is the one
+   * composition whose correctness is a matter of geometry — "the columns
+   * line up" cannot be read off a class list — so the Cell's own box and
+   * the box its text actually occupies are both reported: a right-aligned
+   * column is only right-aligned if the text sits at the box's right edge,
+   * not merely if `text-align` computes to `right`.
+   */
+  readonly tableCells: readonly {
+    readonly text: string;
+    readonly left: number;
+    readonly right: number;
+    readonly top: number;
+    readonly textLeft: number;
+    readonly textRight: number;
+    readonly textAlign: string;
+    readonly fontWeight: string;
+    /** The gutter between this column and the next, which the Cell's own box includes. */
+    readonly paddingRight: number;
+    readonly borderLeftWidth: number;
+    readonly borderRightWidth: number;
+    /** Small caps for a Header row, lining tabular figures for a numeric column. */
+    readonly fontVariantCaps: string;
+    readonly fontVariantNumeric: string;
   }[];
   /**
    * The text column every visual line above is measured against (US-019):

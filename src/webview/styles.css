@@ -28,6 +28,7 @@
   --editor-cursor: var(--vscode-editorCursor-foreground);
   --editor-selection: var(--vscode-editor-selectionBackground);
   --editor-blockquote-rail: var(--vscode-textBlockQuote-border, var(--vscode-editor-foreground));
+  --editor-table-rule: var(--vscode-editorWidget-border, var(--vscode-editor-foreground));
   --editor-scene-break: var(--vscode-editor-foreground);
   --editor-scrollbar-thumb: var(--vscode-scrollbarSlider-background);
   --editor-scrollbar-thumb-hover: var(--vscode-scrollbarSlider-hoverBackground);
@@ -58,6 +59,7 @@
   --editor-cursor: #2b2620;
   --editor-selection: #dcd0b4;
   --editor-blockquote-rail: #b3a483;
+  --editor-table-rule: #c4b596;
   --editor-scene-break: #8c7c58;
   --editor-scrollbar-thumb: rgba(43, 38, 32, 0.25);
   --editor-scrollbar-thumb-hover: rgba(43, 38, 32, 0.4);
@@ -71,6 +73,7 @@
   --editor-cursor: #e9e3d6;
   --editor-selection: #423c2f;
   --editor-blockquote-rail: #8c8168;
+  --editor-table-rule: #6b6250;
   --editor-scene-break: #a89b7c;
   --editor-scrollbar-thumb: rgba(233, 227, 214, 0.2);
   --editor-scrollbar-thumb-hover: rgba(233, 227, 214, 0.35);
@@ -509,4 +512,166 @@ body {
 #editor-root .cm-live-dim {
   opacity: var(--editor-dim-opacity);
   transition: opacity 0.15s ease-out;
+}
+
+/*
+ * US-001/US-002 (009) — the composed Table.
+ *
+ * Set the way a book sets a table, not the way an application sets a data
+ * grid: three horizontal rules and nothing else. One above, one under the
+ * Header row, one below the last Row — no rule between body Rows, no
+ * vertical rules at all, no zebra striping, no fill. (This is the
+ * typographic convention LaTeX's `booktabs` exists to enforce, and the
+ * reason its documentation opens by telling you to delete your vertical
+ * lines.) Everything that separates one column from the next is white
+ * space, which is the same thing that separates one Paragraph from the
+ * next on this surface.
+ *
+ * The layout lives on the Cell, and only on the Cell: `livePreview.ts`
+ * gives every Cell of a column the same share of the measure in every Row,
+ * so the columns line up even though the Rows are, to the browser,
+ * unrelated line boxes. Two earlier shapes were tried and are worth not
+ * trying again — `display: table-row` on the lines, where Chromium builds a
+ * separate anonymous table around each `.cm-line`, so every Row sized its
+ * columns to its own content; and `display: grid` on the line, where the
+ * Cells are not reliably the line's children to begin with (CodeMirror
+ * renders a `cm-widgetBuffer` around every hidden range, and Focus mode
+ * wraps a dimmed line's content in a span of its own).
+ *
+ * BR-002 of 009 lifted the never-a-widget rule for the Table and it turned
+ * out not to be needed: every Cell here is still the Author's own text —
+ * selectable, clickable, composable with the other decorations — with
+ * nothing inserted.
+ *
+ * The measure is not broken (OQ-001): the tracks are shares of the
+ * Chapter's own column, so a Table too wide for it wraps its Cells and
+ * grows taller rather than bleeding into the margins or scrolling.
+ */
+/*
+ * A Row is one line, whatever it costs in width: the Cells may not drop
+ * onto a line of their own. Together with the floor each column takes from
+ * its own title (`livePreview.ts`), this is what stops a Table from ever
+ * breaking a title to fit — a Table wider than the measure reaches into the
+ * margins instead, and scrolls past those. A reader can scroll; a title
+ * chopped into "Per/son/aje" is simply lost.
+ */
+#editor-root .cm-line.cm-live-table-row {
+  white-space: nowrap;
+  /*
+   * The Row's width arrives from `livePreview.ts` as an inline style, one
+   * width for every Row of the Table. That is what lets the rules live here
+   * rather than on the Cells — on the Cells they staircase, because a Cell
+   * whose prose wraps is taller than its neighbours and each draws its
+   * border at its own foot. A rule is one line or it is not a rule.
+   *
+   * `fit-content` looks like the obvious way to size the Row and is not: it
+   * makes the Row a shrink-to-fit box, so the Cells' percentage shares have
+   * nothing definite to resolve against and every Row ends up sized to its
+   * own text — a Row of short Cells coming out narrower than the one under
+   * it, with the columns drifting between them.
+   */
+}
+
+#editor-root .cm-live-table-cell {
+  display: inline-block;
+  /* …while the prose inside a Cell still wraps like prose. */
+  white-space: normal;
+  /* The gutter between columns lives inside the Cell's own share, so the
+   * rules run unbroken across it — a rule with gaps in it is a grid. */
+  box-sizing: border-box;
+  padding: 0.15em 1.15em 0.15em 0;
+  /* Top, not baseline: a Cell that wraps must not drop its whole Row. */
+  vertical-align: top;
+  /* Tighter than prose: a Cell is a phrase, not a Paragraph. */
+  line-height: 1.5;
+  /*
+   * A Cell's alignment is the column's, never the Chapter's: `justified`
+   * would open rivers inside a narrow column, and `right` would silently
+   * re-align every Table on the page. The same override the Scene break's
+   * mark already takes, for the same reason.
+   */
+  text-align: left;
+  hyphens: none;
+  -webkit-hyphens: none;
+  overflow-wrap: break-word;
+  /* A wrapped Cell breaks into even lines rather than leaving one word alone. */
+  text-wrap: pretty;
+}
+
+#editor-root .cm-live-table-cell-right {
+  text-align: right;
+}
+
+#editor-root .cm-live-table-cell-center {
+  text-align: center;
+}
+
+/*
+ * A right-aligned column is where numbers live, and numbers in a column
+ * have to sit in a column: lining figures on one width each, against the
+ * oldstyle figures the prose is set in (see `.cm-content`). This is the
+ * whole reason a column is right-aligned in the first place.
+ */
+#editor-root .cm-live-table-cell-right {
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+/* Markup with nothing left to show — the text is hidden, the line box goes too. */
+#editor-root .cm-line.cm-live-table-delimiter {
+  display: none;
+}
+
+/*
+ * The Header row: quiet authority rather than weight. Small caps, tracked
+ * out enough to read at that size, and the rule beneath doing the real
+ * separating — a row of bold text would shout across the page and make the
+ * Table the loudest thing in the Chapter.
+ */
+#editor-root .cm-live-table-header .cm-live-table-cell {
+  /* The one Cell that never wraps: a title is read as a word or not at all. */
+  white-space: nowrap;
+  font-variant-caps: all-small-caps;
+  font-variant-numeric: lining-nums tabular-nums;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  padding-bottom: 0.5em;
+}
+
+/* The three rules, on the Rows themselves: one above the Table, a lighter
+ * one under the Header row, one below the last Row. */
+#editor-root .cm-line.cm-live-table-header {
+  border-top: 1px solid var(--editor-table-rule);
+  border-bottom: 1px solid color-mix(in srgb, var(--editor-table-rule) 55%, transparent);
+}
+
+/* After the Header row's, so a Table with no body yet closes with this
+ * firmer rule rather than with the lighter one under the head. */
+#editor-root .cm-line.cm-live-table-last-row {
+  border-bottom: 1px solid var(--editor-table-rule);
+}
+
+#editor-root .cm-live-table-last-row .cm-live-table-cell {
+  padding-bottom: 0.5em;
+}
+
+#editor-root .cm-live-table-row:not(.cm-live-table-header) .cm-live-table-cell {
+  padding-top: 0.45em;
+}
+
+/*
+ * The gap between a rule and the type it rules off — and only that gap.
+ * The air around the whole Table comes from the blank lines the markdown
+ * already has on either side of it: a rule has to sit close to the table it
+ * belongs to, and padding on a line is drawn *inside* the border, so any
+ * air added here would push the rule away from the Table instead of away
+ * from the prose. (Margins would do it, and are not an option: these
+ * classes land on the `.cm-line`, whose height CodeMirror measures to lay
+ * the document out.)
+ */
+#editor-root .cm-line.cm-live-table-header {
+  padding-top: 0.55em;
+}
+
+#editor-root .cm-line.cm-live-table-last-row {
+  padding-bottom: 0.55em;
 }

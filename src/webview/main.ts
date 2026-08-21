@@ -349,6 +349,9 @@ window.addEventListener('message', (event: MessageEvent<ExtensionToWebviewMessag
           top: rect.top,
           height: rect.height,
           paddingTop: parseFloat(lineStyle.paddingTop) || 0,
+          borderTopWidth: parseFloat(lineStyle.borderTopWidth) || 0,
+          borderBottomWidth: parseFloat(lineStyle.borderBottomWidth) || 0,
+          width: rect.width,
           // US-019: whether a Scene break keeps its own centring under justified alignment.
           textAlign: lineStyle.textAlign,
           // US-019: the composed marker glyphs (•, ⁂) are ::before content,
@@ -356,6 +359,29 @@ window.addEventListener('message', (event: MessageEvent<ExtensionToWebviewMessag
           // the live classes are the only reliable way to find e.g. the
           // Scene break's line when its text is empty.
           liveClasses: Array.from(el.classList).filter((c) => c.startsWith('cm-live-')),
+        };
+      });
+      const tableCells = Array.from(root.querySelectorAll('.cm-live-table-cell'), (el) => {
+        const rect = el.getBoundingClientRect();
+        const cellStyle = getComputedStyle(el);
+        // The Cell's box is the column; the Range is where its text landed
+        // inside that column — the two only coincide for a left-aligned
+        // Cell whose text fills it.
+        const textBoxes = measureVisualLines(el);
+        return {
+          text: el.textContent ?? '',
+          left: rect.left,
+          right: rect.right,
+          top: rect.top,
+          textLeft: textBoxes.length > 0 ? Math.min(...textBoxes.map((b) => b.left)) : rect.left,
+          textRight: textBoxes.length > 0 ? Math.max(...textBoxes.map((b) => b.right)) : rect.right,
+          textAlign: cellStyle.textAlign,
+          fontWeight: cellStyle.fontWeight,
+          paddingRight: parseFloat(cellStyle.paddingRight) || 0,
+          borderLeftWidth: parseFloat(cellStyle.borderLeftWidth) || 0,
+          borderRightWidth: parseFloat(cellStyle.borderRightWidth) || 0,
+          fontVariantCaps: cellStyle.fontVariantCaps,
+          fontVariantNumeric: cellStyle.fontVariantNumeric,
         };
       });
       const snapshot: TestFromWebviewMessage = {
@@ -393,6 +419,7 @@ window.addEventListener('message', (event: MessageEvent<ExtensionToWebviewMessag
           hyphens: contentStyle.getPropertyValue('-webkit-hyphens') || contentStyle.getPropertyValue('hyphens'),
         },
         lineRects,
+        tableCells,
         contentBox: textColumn,
         scrollerBox: { left: scrollerRect.left, right: scrollerRect.right },
         viewportWidth: window.innerWidth,

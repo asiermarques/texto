@@ -56,11 +56,16 @@ function build(view: EditorView): { decorations: DecorationSet; atomicRanges: Ra
       // US-005/EDGE-003: a Link's target travels as a native `title`
       // attribute on the same span — the only way to keep it discoverable
       // while it stays hidden, with no widget and no layout change.
-      const attributes = instruction.title !== undefined ? { title: instruction.title } : undefined;
-      decoRanges.push(Decoration.mark({ class: instruction.class, attributes }).range(instruction.from, instruction.to));
+      // US-001 of 009: a Cell's width arrives the same way — computed per
+      // Table, so it cannot be a class the stylesheet knows in advance.
+      const attributes = { ...instruction.attributes, ...(instruction.title !== undefined ? { title: instruction.title } : {}) };
+      decoRanges.push(Decoration.mark({ class: instruction.class, attributes: Object.keys(attributes).length > 0 ? attributes : undefined }).range(instruction.from, instruction.to));
     } else {
       const lineStart = view.state.doc.lineAt(instruction.from).from;
-      decoRanges.push(Decoration.line({ class: instruction.class }).range(lineStart));
+      // US-001 of 009: a Table's Rows carry their shared width — the one
+      // composition whose layout is a computed value rather than a class the
+      // stylesheet can know in advance.
+      decoRanges.push(Decoration.line({ class: instruction.class, attributes: instruction.attributes }).range(lineStart));
     }
   }
 

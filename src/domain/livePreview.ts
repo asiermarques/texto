@@ -12,11 +12,18 @@ export type LivePreviewInstruction =
   // `title` (US-005/EDGE-003): a Link's target, carried so the webview can
   // set it as a native `title` attribute — the only way to keep the target
   // discoverable while it stays hidden, with no widget and no layout change.
-  | { readonly kind: 'mark'; readonly from: number; readonly to: number; readonly class: string; readonly title?: string }
+  //
+  // `attributes` (US-001 of 009): a Cell's width is computed per Table —
+  // no fixed class can carry it — so it travels as a style attribute on
+  // the same span. A value, like `title`, rather than a name.
+  | { readonly kind: 'mark'; readonly from: number; readonly to: number; readonly class: string; readonly title?: string; readonly attributes?: Readonly<Record<string, string>> }
   // A whole-line class (list bullet, blockquote rail, heading level, scene
   // break). `from`/`to` sit anywhere inside the target line; the caller
   // resolves the actual line bounds via `doc.lineAt`.
-  | { readonly kind: 'line'; readonly from: number; readonly to: number; readonly class: string };
+  //
+  // `attributes` (US-001 of 009): a Table's Rows are all one width, a value
+  // only this analyser can work out — see `columnLayout`.
+  | { readonly kind: 'line'; readonly from: number; readonly to: number; readonly class: string; readonly attributes?: Readonly<Record<string, string>> };
 
 // Every inline construct that composes as "hide two marks, style the content
 // between them" — StrongEmphasis and Emphasis already did; Strikethrough
@@ -36,6 +43,30 @@ const INLINE_MARK_NODES: Record<string, { markType: string; class: string; title
   FootnoteReference: { markType: 'FootnoteReferenceMark', class: 'cm-live-footnote-ref' },
 };
 
+// What one character is worth when estimating a column's width, in `em` and
+// deliberately not in `ch`: `ch` is the width of a "0" *in the element's own
+// font*, so the Header row's heavier type resolved it differently from the
+// body's and the columns drifted a few pixels apart. An `em` is the same
+// length in every Cell of a column.
+//
+// Two rates, because a title and a Paragraph are not set the same way: the
+// Header row is small caps tracked out by 0.08em a letter (styles.css), so
+// a title costs measurably more per character than the prose under it —
+// measured at ~0.575em against Literata's lowercase average of ~0.5em, and
+// rounded up here so a title is never the thing that overflows.
+const TITLE_CHARACTER_WIDTH = 0.62;
+const BODY_CHARACTER_WIDTH = 0.55;
+
+// Past this many characters a "word" is something else — a URL, a hash, a
+// path — and a column has no business widening to hold it whole. It breaks
+// like prose (`overflow-wrap`, styles.css) rather than pushing the Table
+// off the page.
+const LONGEST_PROTECTED_WORD = 14;
+
+// The allowance on top of the characters themselves: the gutter the Cell
+// carries (1.15em, styles.css) and a little slack.
+const COLUMN_GUTTER = 1.25;
+
 // US-010: nesting deeper than this shares the deepest defined class —
 // styles.css only defines this many depth-specific rules.
 const MAX_LIST_DEPTH_CLASS = 6;
@@ -51,6 +82,27 @@ function listDepth(node: SyntaxNode): number {
     ancestor = ancestor.parent;
   }
   return depth;
+}
+
+/**
+ * US-002 of 009: the extra class each column's Cells carry, read off the
+ * Delimiter row ("|:---|---:|"). The parser hands that row over as a single
+ * node, so the columns are split out of its text rather than read off nodes
+ * of their own. An explicitly left-aligned column (":---") and an unmarked
+ * one both come back empty: left is what a Cell already does.
+ */
+function columnAlignments(delimiterRow: string): string[] {
+  return delimiterRow
+    .replace(/^\s*\|/, '')
+    .replace(/\|\s*$/, '')
+    .split('|')
+    .map((spec) => {
+      const trimmed = spec.trim();
+      if (trimmed.startsWith(':') && trimmed.endsWith(':')) {
+        return ' cm-live-table-cell-center';
+      }
+      return trimmed.endsWith(':') ? ' cm-live-table-cell-right' : '';
+    });
 }
 
 function lineBoundsAt(text: string, pos: number): SelectionRange {
@@ -121,6 +173,203 @@ export function computeLivePreviewInstructions(tree: Tree, text: string, selecti
         break;
       }
       pos = line.to + 1;
+    }
+  }
+
+  // US-001/US-002 of 009. The grid is CSS over the Author's own characters:
+  // every pipe and every padding space is hidden, each Cell is marked, and
+  // the Rows carry a line class the stylesheet turns into table rows. The
+  // columns then line up because the browser lays them out, which is what
+  // NOGOAL-001 of 006 ("the one construct that cannot be expressed as
+  // hide/mark/line") did not account for — BR-002 of 009 authorised a
+  // widget for this and it turned out not to be needed.
+  function composeTable(node: SyntaxNode): void {
+    // FR-003: a Table reveals whole. Not by line like every other block
+    // construct — a Row's raw markdown is only readable next to the other
+    // Rows' (the pipes have to line up with something), and a single Row
+    // dropping out of the grid would reflow the columns under the cursor.
+    if (touchesBlock(selection, { from: node.from, to: node.to })) {
+      return;
+    }
+
+    // The Delimiter row is the one TableDelimiter that is a direct child of
+    // the Table: the pipes bounding each Cell are TableDelimiters too, but
+    // they hang off the TableHeader/TableRow they belong to.
+    const delimiterRow = childrenOf(node, 'TableDelimiter')[0];
+    const alignments = delimiterRow ? columnAlignments(text.slice(delimiterRow.from, delimiterRow.to)) : [];
+    const columns = columnLayout(node);
+
+    // Which Row closes the Table — its Header row, when nothing has been
+    // written under the Delimiter row yet. A table in a well-set book is
+    // ruled top, under the head and bottom, and only the analyser knows
+    // which line the bottom one belongs to.
+    // By position, not by identity: the tree hands out a fresh `SyntaxNode`
+    // object on every access, so two references to the same Row are never
+    // `===` each other.
+    let lastRowFrom = -1;
+    for (let row = node.firstChild; row; row = row.nextSibling) {
+      if (row.type.name === 'TableHeader' || row.type.name === 'TableRow') {
+        lastRowFrom = row.from;
+      }
+    }
+
+    let child = node.firstChild;
+    while (child) {
+      const childName = child.type.name;
+      if (childName === 'TableDelimiter') {
+        // Composed, the Delimiter row is markup with nothing to show at
+        // all. Both halves are needed: `hide` takes its text out of the
+        // DOM (a `display: none` line still contributes its pipes to
+        // `textContent`, which is what the Author's screen reader — and
+        // the test protocol — would read), and the line class collapses
+        // the empty line box that would otherwise sit between the Header
+        // row and the body.
+        instructions.push({ kind: 'hide', from: child.from, to: child.to });
+        instructions.push({ kind: 'line', from: child.from, to: child.from, class: 'cm-live-table-delimiter' });
+      } else if (childName === 'TableHeader' || childName === 'TableRow') {
+        composeTableRow(child, alignments, columns, childName === 'TableHeader', child.from === lastRowFrom);
+      }
+      child = child.nextSibling;
+    }
+  }
+
+  /**
+   * How wide each column is, as a share of the measure. Every Cell of a
+   * column is given the same share in every Row, which is what makes the
+   * columns line up — the Rows themselves are unrelated line boxes to the
+   * browser, and cannot be laid out together: CodeMirror renders a
+   * `cm-widgetBuffer` around every hidden range and Focus mode wraps a
+   * dimmed line's content in a span of its own, so a Cell is not reliably a
+   * child of its Row at all. Only the Cell can carry the layout.
+   *
+   * Shares rather than absolute widths: a Cell is set in the Chapter's own
+   * proportional type (ASM-001), where a character count is a decent ratio
+   * and a poor width. A percentage of the measure also cannot overflow it
+   * (OQ-001: a wide Table wraps and grows taller, it never bleeds into the
+   * margins). The floor keeps a column of "#" beside one of prose from
+   * collapsing to less than a character.
+   */
+  function columnLayout(table: SyntaxNode): { readonly row: string; readonly cells: readonly string[] } {
+    const widths: number[] = [];
+    // A column is never narrower than the title above it: a broken title
+    // ("Per/son/aje") is the one thing a Table may not do to the Author's
+    // words, so the Header row's Cells are a floor, not an average.
+    const titles: number[] = [];
+    // The longest single word in each column: a column narrower than this
+    // breaks a word in half ("Pendien/te"), which is the same offence
+    // against the Author's text as a broken title, one row further down.
+    const words: number[] = [];
+    let row = table.firstChild;
+    while (row) {
+      const isHeader = row.type.name === 'TableHeader';
+      if (isHeader || row.type.name === 'TableRow') {
+        let column = 0;
+        let cell = row.firstChild;
+        while (cell) {
+          if (cell.type.name === 'TableCell') {
+            // Code points, not UTF-16 units: "á" is one character on screen
+            // however it is encoded.
+            const content = text.slice(cell.from, cell.to);
+            const width = [...content].length;
+            widths[column] = Math.max(widths[column] ?? 0, width);
+            const longestWord = content
+              .split(/\s+/)
+              .reduce((longest, word) => Math.max(longest, [...word].length), 0);
+            words[column] = Math.max(words[column] ?? 0, Math.min(longestWord, LONGEST_PROTECTED_WORD));
+            if (isHeader) {
+              titles[column] = width;
+            }
+            column++;
+          }
+          cell = cell.nextSibling;
+        }
+      }
+      row = row.nextSibling;
+    }
+    // Two widths per column. The floor is whichever is wider: the title
+    // above the column, or the longest word in it — prose longer than that
+    // wraps, which is what prose does, while a single word never does. The
+    // ceiling is the column's widest Cell: a book sets a table to the width
+    // of its content and leaves the rest of the page alone, rather than
+    // stretching two columns across the measure with the second stranded in
+    // the middle.
+    const floors = widths.map(
+      (width, column) =>
+        Math.max((titles[column] ?? width) * TITLE_CHARACTER_WIDTH, (words[column] ?? 0) * BODY_CHARACTER_WIDTH) + COLUMN_GUTTER
+    );
+    const ceilings = widths.map((width, column) => Math.max(width * BODY_CHARACTER_WIDTH + COLUMN_GUTTER, floors[column]));
+    const totalCeiling = ceilings.reduce((sum, width) => sum + width, 0);
+    const totalFloor = floors.reduce((sum, width) => sum + width, 0);
+
+    return {
+      // The Row's own width, and the reason the columns line up at all: a
+      // Cell's share is a percentage, and a percentage needs something
+      // definite to be a percentage OF. Left to `fit-content` the Row is a
+      // shrink-to-fit box — the shares stop resolving, every Row sizes
+      // itself to its own text, and a Row of short Cells comes out narrower
+      // than the one below it. (The rules live on the Row, so that also
+      // stopped them from spanning the whole Table.)
+      //
+      // The clamp reads: as wide as the content wants, never wider than the
+      // measure — unless not even the floors fit, in which case the Table is
+      // as wide as its floors and reaches into the margins rather than
+      // breaking a title or a word.
+      row: `width: clamp(${round(totalFloor)}em, ${round(totalCeiling)}em, 100%)`,
+      cells: ceilings.map((ceiling, column) => {
+        // Floored, never rounded: the shares have to stay under 100%
+        // together, or the last Cell of every Row wraps onto its own line.
+        const share = Math.floor((ceiling / totalCeiling) * 10000) / 100;
+        return `width: ${share}%; min-width: ${round(floors[column])}em; max-width: ${round(ceiling)}em`;
+      }),
+    };
+  }
+
+  function round(width: number): number {
+    return Math.round(width * 100) / 100;
+  }
+
+  function composeTableRow(
+    row: SyntaxNode,
+    alignments: readonly string[],
+    columns: { readonly row: string; readonly cells: readonly string[] },
+    isHeader: boolean,
+    isLast: boolean
+  ): void {
+    instructions.push({ kind: 'line', from: row.from, to: row.from, class: 'cm-live-table-row', attributes: { style: columns.row } });
+    if (isHeader) {
+      instructions.push({ kind: 'line', from: row.from, to: row.from, class: 'cm-live-table-header' });
+    }
+    if (isLast) {
+      instructions.push({ kind: 'line', from: row.from, to: row.from, class: 'cm-live-table-last-row' });
+    }
+
+    // Hiding the gaps between the Cells, rather than the pipe nodes
+    // themselves, is what takes the padding spaces with them: a TableCell's
+    // range stops at its text ("| Ana |" gives a Cell of "Ana"), so hiding
+    // only the pipes would leave the Author's padding — the very spaces
+    // US-003 will be maintaining — sitting inside the composed column.
+    let pos = row.from;
+    let column = 0;
+    let cell = row.firstChild;
+    while (cell) {
+      if (cell.type.name === 'TableCell') {
+        if (pos < cell.from) {
+          instructions.push({ kind: 'hide', from: pos, to: cell.from });
+        }
+        instructions.push({
+          kind: 'mark',
+          from: cell.from,
+          to: cell.to,
+          class: `cm-live-table-cell${alignments[column] ?? ''}`,
+          attributes: columns.cells[column] !== undefined ? { style: columns.cells[column] } : undefined,
+        });
+        pos = cell.to;
+        column++;
+      }
+      cell = cell.nextSibling;
+    }
+    if (pos < row.to) {
+      instructions.push({ kind: 'hide', from: pos, to: row.to });
     }
   }
 
@@ -365,6 +614,11 @@ export function computeLivePreviewInstructions(tree: Tree, text: string, selecti
       return;
     }
 
+    if (name === 'Table') {
+      composeTable(node);
+      return;
+    }
+
     if (name === 'HorizontalRule') {
       // Composition reserves the line's height and centring always, so the
       // neighbouring lines never shift when the raw "---" replaces the "⁂".
@@ -376,7 +630,7 @@ export function computeLivePreviewInstructions(tree: Tree, text: string, selecti
       return;
     }
 
-    // Anything else (Paragraph, Document, Link, Table, plain text, …) isn't
+    // Anything else (Paragraph, Document, plain text, …) isn't
     // part of the rendered subset: recurse in case one of our node types
     // appears nested inside it, but never decorate the node itself
     // (BR-002/EDGE-002 — it stays exactly as written).

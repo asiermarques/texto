@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { computeLivePreviewInstructions } from '../helpers/domainTestHelpers';
+import type { LivePreviewInstruction } from '../../src/domain/livePreview';
 
 /** A collapsed cursor at `pos`, nowhere near any construct in these fixtures. */
 function cursorAt(pos: number) {
@@ -57,11 +58,11 @@ describe('computeLivePreviewInstructions — US-006: emphasis', () => {
     expect(instructions.filter((i) => i.kind === 'hide')).toHaveLength(2);
   });
 
-  it('produces no instructions for a table (NOGOAL-001 of 006: tables stay outside the Composed subset)', () => {
+  it('composes a table (009 supersedes NOGOAL-001 of 006: a Table joined the Composed subset)', () => {
     const text = '| a | b |\n| --- | --- |\n| 1 | 2 |';
     const instructions = computeLivePreviewInstructions(text, FAR_AWAY);
 
-    expect(instructions).toEqual([]);
+    expect(instructions).not.toEqual([]);
   });
 
   it('sorts instructions by position, so callers can build a RangeSet directly', () => {
@@ -569,5 +570,246 @@ describe('computeLivePreviewInstructions — US-008: scene break', () => {
     const instructions = computeLivePreviewInstructions(text, FAR_AWAY);
 
     expect(instructions.some((i) => i.from < 17 || i.to > 20)).toBe(false);
+  });
+});
+
+/** Every composed Cell's mark instruction, narrowed so its attributes are readable. */
+function cellMarks(instructions: readonly LivePreviewInstruction[]) {
+  return instructions.flatMap((i) => (i.kind === 'mark' && i.class.startsWith('cm-live-table-cell') ? [i] : []));
+}
+
+describe('computeLivePreviewInstructions — US-001 of 009: the composed Table', () => {
+  // "| Name | Role |\n| --- | --- |\n| Ana | Editor |"
+  //  0      7      14 16          29 30      36     45
+  const TABLE = '| Name | Role |\n| --- | --- |\n| Ana | Editor |';
+
+  it('hides every pipe together with the padding around it, leaving only the Cells', () => {
+    const instructions = computeLivePreviewInstructions(TABLE, FAR_AWAY);
+
+    expect(instructions.filter((i) => i.kind === 'hide')).toEqual([
+      { kind: 'hide', from: 0, to: 2 },
+      { kind: 'hide', from: 6, to: 9 },
+      { kind: 'hide', from: 13, to: 15 },
+      { kind: 'hide', from: 16, to: 29 },
+      { kind: 'hide', from: 30, to: 32 },
+      { kind: 'hide', from: 35, to: 38 },
+      { kind: 'hide', from: 44, to: 46 },
+    ]);
+  });
+
+  it('marks each Cell so the stylesheet can lay the columns out', () => {
+    const instructions = computeLivePreviewInstructions(TABLE, FAR_AWAY);
+
+    expect(instructions.filter((i) => i.kind === 'mark')).toEqual([
+      { kind: 'mark', from: 2, to: 6, class: 'cm-live-table-cell', attributes: { style: 'width: 45.04%; min-width: 3.73em; max-width: 3.73em' } },
+      { kind: 'mark', from: 9, to: 13, class: 'cm-live-table-cell', attributes: { style: 'width: 54.95%; min-width: 4.55em; max-width: 4.55em' } },
+      { kind: 'mark', from: 32, to: 35, class: 'cm-live-table-cell', attributes: { style: 'width: 45.04%; min-width: 3.73em; max-width: 3.73em' } },
+      { kind: 'mark', from: 38, to: 44, class: 'cm-live-table-cell', attributes: { style: 'width: 54.95%; min-width: 4.55em; max-width: 4.55em' } },
+    ]);
+  });
+
+  it('takes the Delimiter row out of the rendered text entirely, not just out of sight', () => {
+    const instructions = computeLivePreviewInstructions(TABLE, FAR_AWAY);
+
+    expect(instructions).toContainEqual({ kind: 'hide', from: 16, to: 29 });
+  });
+
+  it('gives the Header row and every Row their line class, and the Delimiter row its own', () => {
+    const instructions = computeLivePreviewInstructions(TABLE, FAR_AWAY).filter((i) => i.kind === 'line');
+
+    expect(instructions).toContainEqual(expect.objectContaining({ kind: 'line', from: 0, to: 0, class: 'cm-live-table-row' }));
+    expect(instructions).toContainEqual({ kind: 'line', from: 0, to: 0, class: 'cm-live-table-header' });
+    expect(instructions).toContainEqual({ kind: 'line', from: 16, to: 16, class: 'cm-live-table-delimiter' });
+    expect(instructions).toContainEqual(expect.objectContaining({ kind: 'line', from: 30, to: 30, class: 'cm-live-table-row' }));
+    expect(instructions.filter((i) => i.class === 'cm-live-table-header')).toHaveLength(1);
+  });
+
+  it('gives one column’s Cells the same width in every Row, in proportion to its widest Cell', () => {
+    const cells = cellMarks(computeLivePreviewInstructions(TABLE, FAR_AWAY));
+
+    // Column 0's widest Cell is "Name" (4, against "Ana"); column 1's is
+    // "Editor" (6, against "Role") — 4 against 6 of the measure.
+    expect(cells.map((c) => c.attributes?.style)).toEqual([
+      'width: 45.04%; min-width: 3.73em; max-width: 3.73em',
+      'width: 54.95%; min-width: 4.55em; max-width: 4.55em',
+      'width: 45.04%; min-width: 3.73em; max-width: 3.73em',
+      'width: 54.95%; min-width: 4.55em; max-width: 4.55em',
+    ]);
+  });
+
+  it('counts a Cell’s characters, not its bytes, when sizing a column', () => {
+    const text = '| á | bb |\n| --- | --- |\n| 1 | 2 |';
+    const cells = cellMarks(computeLivePreviewInstructions(text, FAR_AWAY));
+
+    // Both columns are below the floor a column never drops under, so their
+    // *shares* come out even rather than 1 against 2 — while the cap that
+    // stops a column growing past its content keeps counting the real
+    // characters, "á" as one of them.
+    expect(cells.map((c) => c.attributes?.style)).toEqual([
+      'width: 42.88%; min-width: 1.87em; max-width: 1.87em',
+      'width: 57.11%; min-width: 2.49em; max-width: 2.49em',
+      'width: 42.88%; min-width: 1.87em; max-width: 1.87em',
+      'width: 57.11%; min-width: 2.49em; max-width: 2.49em',
+    ]);
+  });
+
+  it('stops a column growing wider than its own content, so a short Table does not stretch across the measure', () => {
+    const text = '| Escena | Estado |\n| --- | --- |\n| El regreso | revisada |';
+    const cells = cellMarks(computeLivePreviewInstructions(text, FAR_AWAY));
+
+    // "El regreso" (10) and "revisada" (8) are the widest in their columns.
+    expect(cells[0].attributes?.style).toBe('width: 54.43%; min-width: 5.1em; max-width: 6.75em');
+    expect(cells[1].attributes?.style).toBe('width: 45.56%; min-width: 5.65em; max-width: 5.65em');
+  });
+
+  it('never lets a column be narrower than its own title, however wide the Table gets', () => {
+    // Four long titles cannot share one measure without something giving.
+    // What gives is the measure, never the title: each column keeps a floor
+    // of its own Header row Cell, so "Personaje" is never broken into
+    // "Per/son/aje". The Table bleeds into the margins, and scrolls if it
+    // has to.
+    const text = [
+      '| Personaje | Papel en la novela | Notas del editor | Estado |',
+      '| --- | --- | --- | --- |',
+      '| Beltrán | Traductor literario de una obra extensa | Revisó el capítulo entero | Pendiente |',
+    ].join('\n');
+    const cells = cellMarks(computeLivePreviewInstructions(text, FAR_AWAY));
+
+    expect(cells[0].attributes?.style).toContain('min-width: 6.83em');
+    expect(cells[1].attributes?.style).toContain('min-width: 12.41em');
+    expect(cells[2].attributes?.style).toContain('min-width: 11.17em');
+    // "Estado" is a short title, but "Pendiente" under it is a longer word,
+    // and it is the word that sets this column's floor.
+    expect(cells[3].attributes?.style).toContain('min-width: 6.2em');
+    // Every Row's Cells carry the same floor as the title above them.
+    expect(cells[4].attributes?.style).toContain('min-width: 6.83em');
+  });
+
+  it('never lets a narrow column collapse beside a wide one', () => {
+    const text = '| # | Descripción |\n| --- | --- |\n| 1 | Una línea larga de prosa corriente |';
+    const cells = cellMarks(computeLivePreviewInstructions(text, FAR_AWAY));
+    const [narrow] = cells.map((c) => Number.parseFloat(c.attributes?.style?.replace(/[^0-9.]/g, '') ?? '0'));
+
+    // "#" is one character against a column of 34: proportion alone would
+    // leave it 3% of the measure, less than a character wide.
+    expect(narrow).toBeGreaterThan(5);
+  });
+
+  it('gives every Row one definite width, which is what the Cells’ shares are shares of', () => {
+    const rows = computeLivePreviewInstructions(TABLE, FAR_AWAY).flatMap((i) =>
+      i.kind === 'line' && i.class === 'cm-live-table-row' ? [i.attributes?.style] : []
+    );
+
+    // As wide as the content wants, never wider than the measure — and
+    // never narrower than the titles and words inside need, in which case
+    // the Table reaches into the margins instead of breaking them.
+    expect(rows).toEqual(['width: clamp(8.28em, 8.28em, 100%)', 'width: clamp(8.28em, 8.28em, 100%)']);
+  });
+
+  it('widens a Row past the measure only when its own floors demand it', () => {
+    const wide = [
+      '| Personaje | Papel en la novela | Notas del editor | Estado |',
+      '| --- | --- | --- | --- |',
+      '| Beltrán | Traductor literario de una obra extensa | Revisó el capítulo entero | Pendiente |',
+    ].join('\n');
+    const [row] = computeLivePreviewInstructions(wide, FAR_AWAY).flatMap((i) =>
+      i.kind === 'line' && i.class === 'cm-live-table-row' ? [i.attributes?.style] : []
+    );
+
+    // 36.61em of floors against a 38em measure: this one still fits, and
+    // wants 50.73em if the page would give it.
+    expect(row).toBe('width: clamp(36.61em, 50.73em, 100%)');
+  });
+
+  it('marks the last Row, which is where the Table closes', () => {
+    const instructions = computeLivePreviewInstructions(TABLE, FAR_AWAY);
+    const closing = instructions.filter((i) => i.kind === 'line' && i.class === 'cm-live-table-last-row');
+
+    // TABLE's only body Row is also its last.
+    expect(closing).toEqual([{ kind: 'line', from: 30, to: 30, class: 'cm-live-table-last-row' }]);
+  });
+
+  it('closes on the last Row and no earlier one', () => {
+    const text = '| a | b |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n| 5 | 6 |';
+    const closing = computeLivePreviewInstructions(text, FAR_AWAY).filter(
+      (i) => i.kind === 'line' && i.class === 'cm-live-table-last-row'
+    );
+
+    expect(closing).toHaveLength(1);
+    expect(closing[0].from).toBe(text.lastIndexOf('| 5 | 6 |'));
+  });
+
+  it('closes on the Header row when the Table has no body yet', () => {
+    const text = '| a | b |\n| --- | --- |';
+    const closing = computeLivePreviewInstructions(text, FAR_AWAY).filter(
+      (i) => i.kind === 'line' && i.class === 'cm-live-table-last-row'
+    );
+
+    expect(closing).toEqual([{ kind: 'line', from: 0, to: 0, class: 'cm-live-table-last-row' }]);
+  });
+
+  it('reveals the WHOLE Table — every Row, not just the cursor’s — while the selection is inside it', () => {
+    // Cursor inside "Ana", on the last line: the Header row two lines up
+    // has to come back too (FR-003).
+    expect(computeLivePreviewInstructions(TABLE, cursorAt(33))).toEqual([]);
+    // …and from the Header row, and from the Delimiter row.
+    expect(computeLivePreviewInstructions(TABLE, cursorAt(3))).toEqual([]);
+    expect(computeLivePreviewInstructions(TABLE, cursorAt(20))).toEqual([]);
+  });
+
+  it('composes the Table again as soon as the selection leaves it', () => {
+    const text = `${TABLE}\n\nAfter the table.`;
+    const cursorAfter = cursorAt(text.length - 1);
+
+    expect(computeLivePreviewInstructions(text, cursorAfter).length).toBeGreaterThan(0);
+  });
+
+  it('leaves a half-written Table exactly as typed (BR-004: it is not a Table until it parses as one)', () => {
+    const text = '| a | b\n| 1 | 2 |';
+
+    expect(computeLivePreviewInstructions(text, FAR_AWAY)).toEqual([]);
+  });
+
+  it('composes a Row that carries fewer Cells than the Header row', () => {
+    const text = '| a | b |\n| --- | --- |\n| 1 |';
+    const instructions = computeLivePreviewInstructions(text, FAR_AWAY);
+
+    expect(instructions.filter((i) => i.kind === 'mark')).toHaveLength(3);
+    expect(instructions.filter((i) => i.kind === 'line' && i.class === 'cm-live-table-row')).toHaveLength(2);
+  });
+});
+
+/** The class of every composed Cell, in document order. */
+function cellClasses(text: string): string[] {
+  return computeLivePreviewInstructions(text, FAR_AWAY).flatMap((i) => (i.kind === 'mark' ? [i.class] : []));
+}
+
+describe('computeLivePreviewInstructions — US-002 of 009: Column alignment', () => {
+  // "| Name | Total |\n|:---|---:|\n| Ana | 12 |"
+  //  0             15 17        27 29         40
+  const ALIGNED = '| Name | Total |\n|:---|---:|\n| Ana | 12 |';
+
+  it('gives each Cell the class of its own column, Header row included', () => {
+    const marks = cellClasses(ALIGNED);
+
+    expect(marks).toEqual([
+      'cm-live-table-cell',
+      'cm-live-table-cell cm-live-table-cell-right',
+      'cm-live-table-cell',
+      'cm-live-table-cell cm-live-table-cell-right',
+    ]);
+  });
+
+  it('reads a centred column from its ":-:" marker', () => {
+    const text = '| a | b |\n| :-: | --- |\n| 1 | 2 |';
+    const marks = cellClasses(text);
+
+    expect(marks[0]).toBe('cm-live-table-cell cm-live-table-cell-center');
+    expect(marks[1]).toBe('cm-live-table-cell');
+  });
+
+  it('leaves an unmarked column with no alignment class of its own', () => {
+    const text = '| a | b |\n| --- | --- |\n| 1 | 2 |';
+    expect(cellClasses(text).every((c) => c === 'cm-live-table-cell')).toBe(true);
   });
 });

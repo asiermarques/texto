@@ -21,7 +21,7 @@ describing them changes with the language.
 | **Chapter** | Unit of organisation of the **Work**, and the contents of one markdown file: a chapter in fiction, a section or an article in non-fiction. | Capítulo | Chapter | Document, file |
 | **Scene** | Continuous stretch inside a **Chapter**, delimited by **Scene breaks**: a shift of action in fiction, of section in non-fiction. | Escena | Scene | Section, block, part |
 | **Scene break** | Mark separating two **Scenes** in the same **Chapter**; a horizontal rule in markdown. | Corte de escena | Scene break | Separator, divider |
-| **Paragraph** | A run of prose inside a **Scene**: exactly one line of the markdown file, however many lines it takes on screen. | Párrafo | Paragraph | Line, row (a **Paragraph** is not a line of the file wrapped by hand) |
+| **Paragraph** | A run of prose inside a **Scene**: exactly one line of the markdown file, however many lines it takes on screen. | Párrafo | Paragraph | Line (a **Paragraph** is not a line of the file wrapped by hand); **Row**, which is a line of a **Table** and never a **Paragraph** |
 | **Draft** | Complete state of the **Work** at a given moment, as it was saved. | Borrador | Draft | Version, commit, revision |
 | **Draft history** | Ordered sequence of the **Drafts** of a **Work**, browsable and comparable. | Historial de borradores | Draft history | Git history, log, version control |
 
@@ -29,7 +29,8 @@ describing them changes with the language.
 
 What a **Chapter** is made of, beyond the **Paragraph** — the vocabulary
 requirement 006 adds so non-fiction has the same canonical names fiction
-already had.
+already had, and requirement 009 completes with the **Table**, the last
+construct 006 left out of the **Composed subset**.
 
 | Term | Definition | UI wording (ES) | UI wording (EN) | Avoid |
 | --- | --- | --- | --- | --- |
@@ -42,6 +43,12 @@ already had.
 | **Footnote** | A call in the text (`[^1]`) composed as a superscript, and its definition, composed apart from prose at the foot of the **Chapter**. | Nota al pie | Footnote | Note, endnote |
 | **Reference definition** | The line elsewhere in the **Chapter** that gives a reference **Link** its target; composed as a discreet block, not as prose. | Definición de referencia | Reference definition | Link reference, footnote (it is not a **Footnote**, even though both sit apart from prose) |
 | **Strikethrough** | `~~text~~`, composed struck through, its tildes hidden. | Tachado | Strikethrough | Strike, deleted text |
+| **Table** | A GFM table: a **Header row**, a **Delimiter row** and its body **Rows**. Composed as a grid — columns aligned, pipes hidden — and revealed whole, never Row by Row, while the selection is inside it (requirement 009). | Tabla | Table | Grid, spreadsheet, matrix |
+| **Row** | One line of a **Table**, holding one **Cell** per column. One **Row**, one line of the file, the same grain PD-005 gives a **Paragraph**. | Fila | Row | Record, line (a **Row** is a line of a **Table**, never a **Paragraph**) |
+| **Header row** | A **Table**'s first **Row**, naming its columns; composed heavier than the body and separated from it by a rule. | Fila de cabecera | Header row | Title row, heading (it is not a **Heading**), th |
+| **Delimiter row** | The `\|---\|:--:\|` line between a **Table**'s **Header row** and its body, carrying the **Column alignment**. Pure markup: composed away entirely, text and line box both. | Fila delimitadora | Delimiter row | Separator row, divider (a **Scene break** is the divider), dashes |
+| **Cell** | One **Table** column's content within one **Row**: inline material only, never more than a line's worth. | Celda | Cell | Field, column (a column is every **Cell** at one position, across the **Rows**), box |
+| **Column alignment** | Which way a **Table** column's **Cells** are set — left (the default), right or centred — written in the **Delimiter row** as `:---`, `---:` or `:---:`. It is the column's own, and overrides the **Chapter**'s **Text alignment**. | Alineación de columna | Column alignment | Justificación, **Text alignment** (that one is the whole **Chapter**'s) |
 | **Composed subset** | The markdown constructs the **Live preview** composes — the rest is shown exactly as written (BR-002 of 001). | Subconjunto compuesto | Composed subset | The FR-002 subset (an internal requirement-tracking name, not a term to write in code or comments), rendered subset |
 
 ## The editor
@@ -82,6 +89,8 @@ the **Author** as a **Writing editor** user, so these carry no UI wording.
 - A **Chapter** holds one or more **Scenes**, separated by **Scene breaks**.
 - A **Scene** is made of **Paragraphs**, one per line of the file (PD-005).
 - Each **Chapter** is a markdown file inside a **Writing space**.
+- A **Table** is made of **Rows**, each one line of the file; a **Row** is made
+  of **Cells**, one per column.
 - The **Writing editor** presents a **Chapter** through a **Writing surface**.
 
 ## Pitfalls
@@ -99,6 +108,11 @@ the **Author** as a **Writing editor** user, so these carry no UI wording.
 - **"Sync" means nothing in this product.** Both meanings it once had (a
   commit + push flow, and CRDT merging) were dropped along with multi-device
   support. What exists is **Draft history**.
+- **Two things are called alignment, and they are not the same.** **Text
+  alignment** is the whole **Chapter**'s (`texto.alignment`: left, right,
+  justified). **Column alignment** is one **Table** column's, written into the
+  **Delimiter row** by the **Author** and always winning over the **Chapter**'s
+  — a justified **Work** does not justify a **Cell**.
 - **"Writing surface" and "Writing editor" are not interchangeable.** The editor
   is the component VSCode opens; the surface is what is seen and felt inside it.
   The product's value is in the second, the integration work in the first.

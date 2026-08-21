@@ -218,7 +218,9 @@ installer.
 - **Live preview: an analyser separate from `EditorState`, handed a tree it
   does not produce (requirement 008).** `src/domain/livePreview.ts` takes an
   already-parsed `Tree` and the text it came from, and returns pure
-  instructions (`hide` / `mark` / `line`); it does not call the parser itself
+  instructions (`hide` / `mark` / `line` — the last two carrying an optional
+  value no class can express in advance: a **Link**'s `title`, a **Cell**'s
+  computed `width`); it does not call the parser itself
   (US-003) and is not installed as CodeMirror language support, so this stays
   independent of the editor's `EditorState`. Producing the tree — the one
   impure part — belongs to `src/webview/treeField.ts` (US-004): a
@@ -255,10 +257,13 @@ installer.
     class is what stops the composed glyph and the real marker from showing
     at once once the marker is revealed.
 - **Every composition is a decoration plus CSS — never a widget (requirement
-  006).** `Decoration.replace`/`Decoration.mark`/`Decoration.line` over the
+  006, held under pressure by 009).** `Decoration.replace`/`Decoration.mark`/`Decoration.line` over the
   Author's own characters, styled by `styles.css`; nothing in the Composed
   subset is an inserted `WidgetType` (a rendered image, a real `<input
-  type="checkbox">`, a table grid). A Task's box (DEC-002) is the sharpest
+  type="checkbox">`). A **Table**'s grid is no longer an example of what this
+  rules out: requirement 009 authorised a widget for it (BR-002) and it turned
+  out not to be needed — see the Table bullet below and
+  `docs/adr/0003-tables-compose-without-a-widget.md`. A Task's box (DEC-002) is the sharpest
   example of why: `[ ]`/`[x]` stay real DOM text, visually replaced by a CSS
   `::before` glyph rather than removed — which is what lets
   `domEventHandlers` hit-test the span at all for US-016's click-to-toggle. A
@@ -268,6 +273,29 @@ installer.
   decorations, and exempt from the layout risk RISK-004/US-006 already
   fought hard to get right for hidden markers. `docs/UBIQUITOUS_LANGUAGE.md`
   calls the whole set the **Composed subset**.
+- **A Table is laid out per Cell, because its Rows cannot be laid out together
+  (requirement 009).** Every **Cell** of a column is given the same share of the
+  measure in every **Row** — computed once per **Table** in
+  `src/domain/livePreview.ts` from the widest **Cell** in each column, stamped
+  on the **Cell**'s own `mark` decoration as a `width`, and rendered as an
+  inline-block. The obvious shapes do not work, and both were built and
+  measured before this one: `display: table-row` on the lines has Chromium
+  build a *separate anonymous table per line*, so every **Row** sizes its
+  columns to its own content; `display: grid` on the line assigns tracks by
+  child order, and a **Cell** is not reliably a child of its line (CodeMirror
+  renders a `cm-widgetBuffer` around every hidden range, and **Focus mode**
+  wraps a dimmed line's content in a span of its own). Shares of the measure
+  rather than character widths because a **Cell** is set in the **Chapter**'s
+  proportional type, where a character count is a good ratio and a bad width —
+  and because a share cannot overflow the measure, which is how a wide
+  **Table** comes to wrap instead of bleeding (OQ-001 of 009). The pipes and
+  the padding around them are hidden as the *gaps between* **Cells** rather
+  than as the pipe nodes themselves, which is what takes the Author's padding
+  spaces with them. The **Delimiter row** is both hidden (its text leaves the
+  DOM) and given a `display: none` line class (its empty line box goes too).
+  A **Table** reveals whole, not by line like every other block construct:
+  a **Row**'s raw markdown is only readable next to the other **Rows**'.
+  Rationale and the discarded options: `docs/adr/0003-tables-compose-without-a-widget.md`.
 - **One parser configuration, shared by every traversal (requirement
   006, reconfigured by requirement 008).** `src/domain/markdownParser.ts`
   exports the single `MarkdownParser` instance that `livePreview.ts`,
