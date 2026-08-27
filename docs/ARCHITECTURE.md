@@ -451,6 +451,34 @@ installer.
   message; that command *is* declared in `contributes.commands` (unlike
   `texto.setTheme`/`texto.setAlignment` it takes no argument, so the palette
   is a real second entrance to it, reachable with no Chapter open).
+- **The Frontmatter indicator is the toolbar's only entry that can be
+  absent.** It leads the group — like the Word count it sits beside, it
+  describes the Chapter rather than changing it — and carries no `.command`,
+  so VSCode renders it as plain text: an indicator, not a button.
+  `src/domain/frontmatter.ts` decides what counts as a block, for both
+  fences an Author may write: `---` (YAML) and `+++` (TOML, what Hugo and
+  its kin emit). The two are read with deliberately different strictness,
+  because only one is ambiguous. `+++` means nothing else in markdown, so
+  that path validates no line shapes at all — it finds the closing fence and
+  counts keys, since rejecting exotic but legal TOML (multi-line arrays,
+  `[table]` headers) would only cost the Author a real indicator. `---` is
+  *also* how a **Scene break** is written, which is this module's whole
+  reason for existing: there, real Frontmatter has to declare a field on the
+  line right after the opening fence, while a Scene break is followed by a
+  blank line and prose, and every later line has to stay YAML-shaped. Both
+  fences require the block to close within `MAX_FRONTMATTER_LINES` and hold
+  at least one field, so neither an unclosed fence nor two consecutive Scene
+  breaks reads as metadata.
+  Detection is line-based, and `WritingEditorProvider.frontmatterOf()` hands
+  it only the Chapter's head — never `document.getText()`, which would copy
+  a 30,000-word Chapter every time the toolbar settles. Because the
+  indicator can vanish, `EditorToolbar.refresh()` now hides whichever items
+  the domain did not produce, instead of only ever showing: a status bar
+  item keeps its last text until told otherwise, which is also why
+  `getButtonState()` reports a real `visible` rather than letting the
+  integration suite infer absence from an empty `.text`. It settles on the
+  Word count's existing debounce — the same burst of keystrokes, the same
+  question about the text, so a second timer would buy nothing.
   No new source of truth either way: every button writes through the exact
   same setter functions the earlier stories' commands and the webview keymap
   already use.

@@ -1,3 +1,4 @@
+import type { FrontmatterBlock } from './frontmatter';
 import type { EditorTheme, WritingEditorPreferences, TextAlignment } from './preferences';
 
 /**
@@ -38,6 +39,8 @@ export interface ToolbarStrings {
   readonly rawMarkdownTooltipOff: string;
   /** Already carries the running version interpolated into it — see `buildVersionButton`. */
   readonly versionTooltip: string;
+  /** Already carries the field count interpolated into it, in the right plural — see `buildFrontmatterIndicator`. */
+  readonly frontmatterTooltip: string;
 }
 
 // The theme's name travels in the label itself (Author feedback): on their
@@ -104,14 +107,41 @@ export function buildVersionButton(version: string, strings: ToolbarStrings): To
   };
 }
 
-/** Every button, in the order they should appear next to the word count. */
+/**
+ * The Frontmatter indicator: unlike every other entry here it is not a
+ * control but a statement about the Chapter itself, so it carries no
+ * command, and it exists only while the Chapter has a block —
+ * `buildAllToolbarButtons` leaves it out otherwise, and
+ * `src/infrastructure/editorToolbar.ts` hides whichever item this function
+ * did not produce.
+ *
+ * "Frontmatter" is not translated: the glossary fixes it as the wording in
+ * both languages, the same way "Live preview" is fixed. Only the tooltip,
+ * which counts the fields, goes through `ToolbarStrings`.
+ */
+export function buildFrontmatterIndicator(strings: ToolbarStrings): ToolbarButtonSpec {
+  return {
+    id: 'frontmatter',
+    text: '$(tag) Frontmatter',
+    tooltip: strings.frontmatterTooltip,
+  };
+}
+
+/**
+ * Every button, in the order they should appear next to the word count.
+ * `frontmatter` leads the group — like the Word count it sits next to, it
+ * describes the Chapter rather than changing it, and it is the only entry
+ * that can be absent.
+ */
 export function buildAllToolbarButtons(
   preferences: WritingEditorPreferences,
   rawMarkdownActive: boolean,
   version: string,
+  frontmatter: FrontmatterBlock | undefined,
   strings: ToolbarStrings
 ): ToolbarButtonSpec[] {
   return [
+    ...(frontmatter ? [buildFrontmatterIndicator(strings)] : []),
     ...buildThemeButtons(preferences.theme, strings),
     ...buildTextSizeButtons(preferences.textSize, strings),
     ...buildAlignmentButtons(preferences.alignment, strings),

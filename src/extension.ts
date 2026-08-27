@@ -15,7 +15,7 @@ export interface TextoExtensionApi {
   /** US-020: there is no public way to read a `vscode.StatusBarItem`'s current state from outside the extension. */
   readonly getWordCountStatusBarState: () => { readonly visible: boolean; readonly text: string };
   /** US-021: same reason, for one of the toolbar's buttons (see `src/domain/editorToolbar.ts` for the valid ids). */
-  readonly getToolbarButtonState: (id: string) => { readonly text: string; readonly tooltip: string } | undefined;
+  readonly getToolbarButtonState: (id: string) => { readonly text: string; readonly tooltip: string; readonly visible: boolean } | undefined;
   /** US-002 (008): how many times the Word count total has actually been recomputed for this Chapter — proves the debounce coalesces a burst of keystrokes into one recomputation. */
   readonly getWordCountRecomputeCount: (uri: vscode.Uri) => number;
 }

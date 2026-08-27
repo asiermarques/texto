@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { EditOriginTracker } from '../domain/editOriginTracker';
 import { EditorToolbar } from './editorToolbar';
+import { detectFrontmatter, MAX_FRONTMATTER_LINES, type FrontmatterBlock } from '../domain/frontmatter';
 import { getHtmlForWebview } from '../domain/html';
 import { getNonce } from '../domain/nonce';
 import {
@@ -122,7 +123,7 @@ export class WritingEditorProvider implements vscode.CustomTextEditorProvider {
   }
 
   /** Exposed for the integration suite — same reason as `getWordCountStatusBarState`. */
-  public static getToolbarButtonState(id: string): { readonly text: string; readonly tooltip: string } | undefined {
+  public static getToolbarButtonState(id: string): { readonly text: string; readonly tooltip: string; readonly visible: boolean } | undefined {
     return WritingEditorProvider.toolbar.getButtonState(id);
   }
 
@@ -186,6 +187,13 @@ export class WritingEditorProvider implements vscode.CustomTextEditorProvider {
       WritingEditorProvider.pendingWordCountRecompute.delete(uriString);
       WritingEditorProvider.recomputeWordCountTotal(document);
       WritingEditorProvider.refreshWordCountStatusBar(document);
+      // The Frontmatter indicator settles on this same debounce, on purpose:
+      // it answers a question about the text ("does this Chapter open with a
+      // block?") exactly as the Word count does, and it would be the same
+      // burst of keystrokes coalescing into the same one update. A second
+      // timer would buy nothing and cost a second source of truth for when
+      // the status bar is up to date.
+      WritingEditorProvider.refreshToolbar(document);
     }, WritingEditorProvider.WORD_COUNT_DEBOUNCE_MS);
     WritingEditorProvider.pendingWordCountRecompute.set(uriString, timer);
   }
@@ -204,7 +212,26 @@ export class WritingEditorProvider implements vscode.CustomTextEditorProvider {
     if (WritingEditorProvider.activeUri !== uriString) {
       return;
     }
-    WritingEditorProvider.toolbar.refresh(getPreferences(document.uri), WritingEditorProvider.isRawMarkdownActive(document.uri));
+    WritingEditorProvider.toolbar.refresh(
+      getPreferences(document.uri),
+      WritingEditorProvider.isRawMarkdownActive(document.uri),
+      WritingEditorProvider.frontmatterOf(document)
+    );
+  }
+
+  /**
+   * The Chapter's head, the only place Frontmatter can live — read line by
+   * line and bounded by `MAX_FRONTMATTER_LINES`, never through
+   * `document.getText()`, which would copy the whole Chapter every time the
+   * toolbar settles.
+   */
+  private static frontmatterOf(document: vscode.TextDocument): FrontmatterBlock | undefined {
+    const limit = Math.min(document.lineCount, MAX_FRONTMATTER_LINES);
+    const head: string[] = [];
+    for (let line = 0; line < limit; line += 1) {
+      head.push(document.lineAt(line).text);
+    }
+    return detectFrontmatter(head);
   }
 
   // Focus mode (US-009/US-010) is one global preference, not per-Chapter —

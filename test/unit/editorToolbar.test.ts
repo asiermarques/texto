@@ -3,6 +3,7 @@ import {
   buildAlignmentButtons,
   buildAllToolbarButtons,
   buildFocusModeButton,
+  buildFrontmatterIndicator,
   buildRawMarkdownButton,
   buildTextSizeButtons,
   buildThemeButtons,
@@ -37,7 +38,11 @@ const strings: ToolbarStrings = {
   rawMarkdownTooltipOn: 'tooltip-raw-on',
   rawMarkdownTooltipOff: 'tooltip-raw-off',
   versionTooltip: 'tooltip-version',
+  frontmatterTooltip: 'tooltip-frontmatter',
 };
+
+const preferences = { focusModeEnabled: true, theme: 'light', textSize: 18, alignment: 'left' } as const;
+const block = { format: 'yaml', closeLine: 3, fields: ['title', 'author'] } as const;
 
 describe('buildThemeButtons — US-021/US-005', () => {
   it('lists the three values, with the current one marked active, using the given strings', () => {
@@ -118,14 +123,18 @@ describe('buildVersionButton', () => {
   });
 });
 
+describe('buildFrontmatterIndicator', () => {
+  it('names the block and carries the already-counted tooltip', () => {
+    const indicator = buildFrontmatterIndicator(strings);
+    expect(indicator.id).toBe('frontmatter');
+    expect(indicator.text).toBe('$(tag) Frontmatter');
+    expect(indicator.tooltip).toBe('tooltip-frontmatter');
+  });
+});
+
 describe('buildAllToolbarButtons', () => {
   it('ends with the version button, the least prominent position in the group', () => {
-    const buttons = buildAllToolbarButtons(
-      { focusModeEnabled: true, theme: 'light', textSize: 18, alignment: 'left' },
-      false,
-      '0.1.4',
-      strings
-    );
+    const buttons = buildAllToolbarButtons(preferences, false, '0.1.4', undefined, strings);
     expect(buttons.map((b) => b.id)).toEqual([
       'theme-light',
       'theme-dark',
@@ -140,5 +149,17 @@ describe('buildAllToolbarButtons', () => {
       'raw-markdown',
       'version',
     ]);
+  });
+
+  it('leads with the Frontmatter indicator when the Chapter has a block', () => {
+    const buttons = buildAllToolbarButtons(preferences, false, '0.1.4', block, strings);
+    expect(buttons[0].id).toBe('frontmatter');
+    expect(buttons).toHaveLength(13);
+  });
+
+  it('leaves the indicator out entirely when the Chapter has none', () => {
+    const buttons = buildAllToolbarButtons(preferences, false, '0.1.4', undefined, strings);
+    expect(buttons.some((b) => b.id === 'frontmatter')).toBe(false);
+    expect(buttons).toHaveLength(12);
   });
 });
