@@ -36,6 +36,8 @@ export interface ToolbarStrings {
   readonly rawMarkdownLabel: string;
   readonly rawMarkdownTooltipOn: string;
   readonly rawMarkdownTooltipOff: string;
+  /** Already carries the running version interpolated into it — see `buildVersionButton`. */
+  readonly versionTooltip: string;
 }
 
 // The theme's name travels in the label itself (Author feedback): on their
@@ -85,10 +87,28 @@ export function buildRawMarkdownButton(active: boolean, strings: ToolbarStrings)
   };
 }
 
+/**
+ * The version of Texto currently running, readable at a glance rather than
+ * hidden behind a menu — the same Author feedback that turned this toolbar
+ * from a QuickPick into buttons. The product name travels in the label for
+ * the same reason the Theme buttons carry theirs: on its own, a bare
+ * `0.1.4` in the status bar names nothing. The version string is not
+ * translated (it comes from the manifest), so only the tooltip arrives
+ * through `ToolbarStrings`.
+ */
+export function buildVersionButton(version: string, strings: ToolbarStrings): ToolbarButtonSpec {
+  return {
+    id: 'version',
+    text: `$(info) Texto ${version}`,
+    tooltip: strings.versionTooltip,
+  };
+}
+
 /** Every button, in the order they should appear next to the word count. */
 export function buildAllToolbarButtons(
   preferences: WritingEditorPreferences,
   rawMarkdownActive: boolean,
+  version: string,
   strings: ToolbarStrings
 ): ToolbarButtonSpec[] {
   return [
@@ -97,5 +117,6 @@ export function buildAllToolbarButtons(
     ...buildAlignmentButtons(preferences.alignment, strings),
     buildFocusModeButton(preferences.focusModeEnabled, strings),
     buildRawMarkdownButton(rawMarkdownActive, strings),
+    buildVersionButton(version, strings),
   ];
 }

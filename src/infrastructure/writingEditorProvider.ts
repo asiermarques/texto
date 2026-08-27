@@ -262,6 +262,11 @@ export class WritingEditorProvider implements vscode.CustomTextEditorProvider {
 
   public static register(context: vscode.ExtensionContext): vscode.Disposable {
     const provider = new WritingEditorProvider(context);
+    // The version button has nothing to show until the manifest is in
+    // reach: `EditorToolbar` is a static field, constructed before any
+    // `ExtensionContext` exists. This runs once, well before any Chapter
+    // can be opened, so every refresh() afterwards already has it.
+    WritingEditorProvider.toolbar.setVersion(String(context.extension.packageJSON.version));
     const providerRegistration = vscode.window.registerCustomEditorProvider(WritingEditorProvider.viewType, provider, {
       webviewOptions: { retainContextWhenHidden: true },
       supportsMultipleEditorsPerDocument: false,

@@ -438,6 +438,19 @@ installer.
   button's own value as a `vscode.Command.arguments` entry and validated
   against `isEditorTheme`/`isTextAlignment` before writing — not declared in
   `contributes.commands` (an argument-only command has no palette audience).
+- **The Running version is a toolbar button, not an About dialog.** The last
+  button in the group (lowest priority, so rightmost) reads
+  `$(info) Texto <version>` and answers "which Texto is this" without a
+  click — the same Author preference for a visible control over a hidden
+  menu that shaped the rest of the toolbar. The version is not a preference
+  and has no store: `WritingEditorProvider.register()` reads it once from
+  `context.extension.packageJSON.version` and hands it to
+  `EditorToolbar.setVersion()`, because the toolbar is a static field
+  constructed before any `ExtensionContext` exists. Clicking it runs
+  `texto.showVersion`, which shows the same string as an information
+  message; that command *is* declared in `contributes.commands` (unlike
+  `texto.setTheme`/`texto.setAlignment` it takes no argument, so the palette
+  is a real second entrance to it, reachable with no Chapter open).
   No new source of truth either way: every button writes through the exact
   same setter functions the earlier stories' commands and the webview keymap
   already use.

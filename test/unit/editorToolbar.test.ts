@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildAlignmentButtons,
+  buildAllToolbarButtons,
   buildFocusModeButton,
   buildRawMarkdownButton,
   buildTextSizeButtons,
   buildThemeButtons,
+  buildVersionButton,
   type ToolbarStrings,
 } from '../../src/domain/editorToolbar';
 
@@ -34,6 +36,7 @@ const strings: ToolbarStrings = {
   rawMarkdownLabel: 'label-raw-markdown',
   rawMarkdownTooltipOn: 'tooltip-raw-on',
   rawMarkdownTooltipOff: 'tooltip-raw-off',
+  versionTooltip: 'tooltip-version',
 };
 
 describe('buildThemeButtons — US-021/US-005', () => {
@@ -99,5 +102,43 @@ describe('buildRawMarkdownButton — US-021/US-022/US-005', () => {
     const off = buildRawMarkdownButton(false, strings);
     expect(off.text).toBe('$(book) label-raw-markdown');
     expect(off.tooltip).toBe('tooltip-raw-off');
+  });
+});
+
+describe('buildVersionButton', () => {
+  it('shows the running version next to the product name, so a bare number never stands alone', () => {
+    const button = buildVersionButton('0.1.4', strings);
+    expect(button.id).toBe('version');
+    expect(button.text).toBe('$(info) Texto 0.1.4');
+    expect(button.tooltip).toBe('tooltip-version');
+  });
+
+  it('shows whatever the manifest says, pre-release suffixes included', () => {
+    expect(buildVersionButton('1.0.0-beta.2', strings).text).toBe('$(info) Texto 1.0.0-beta.2');
+  });
+});
+
+describe('buildAllToolbarButtons', () => {
+  it('ends with the version button, the least prominent position in the group', () => {
+    const buttons = buildAllToolbarButtons(
+      { focusModeEnabled: true, theme: 'light', textSize: 18, alignment: 'left' },
+      false,
+      '0.1.4',
+      strings
+    );
+    expect(buttons.map((b) => b.id)).toEqual([
+      'theme-light',
+      'theme-dark',
+      'theme-vscode',
+      'size-decrease',
+      'size-value',
+      'size-increase',
+      'align-left',
+      'align-justified',
+      'align-right',
+      'focus-mode',
+      'raw-markdown',
+      'version',
+    ]);
   });
 });

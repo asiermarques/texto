@@ -61,6 +61,10 @@
         "title": "%command.toggleRawMarkdown.title%"
       },
       {
+        "command": "texto.showVersion",
+        "title": "%command.showVersion.title%"
+      },
+      {
         "command": "texto.openWithTexto",
         "title": "%command.openWithTexto.title%"
       },

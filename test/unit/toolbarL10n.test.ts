@@ -38,7 +38,7 @@ function sourceKeysCalledWithL10nT(filePath: string): string[] {
   return keys;
 }
 
-const CHECKED_FILES = ['src/infrastructure/editorToolbar.ts', 'src/infrastructure/wordCountStatusBar.ts'];
+const CHECKED_FILES = ['src/infrastructure/editorToolbar.ts', 'src/infrastructure/wordCountStatusBar.ts', 'src/extension.ts'];
 
 describe('l10n/bundle.l10n.es.json — key parity with src/infrastructure/', () => {
   const englishSourceKeys = CHECKED_FILES.flatMap((relativePath) => sourceKeysCalledWithL10nT(path.resolve(__dirname, '../..', relativePath)));

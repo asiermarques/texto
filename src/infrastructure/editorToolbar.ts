@@ -11,7 +11,7 @@ import type { WritingEditorPreferences } from '../domain/preferences';
  * cannot change without a window reload (EDGE-002), so this is cheap, not
  * cached.
  */
-function resolveToolbarStrings(): ToolbarStrings {
+function resolveToolbarStrings(version: string): ToolbarStrings {
   return {
     themeLabel: {
       light: vscode.l10n.t('Theme Light'),
@@ -42,6 +42,7 @@ function resolveToolbarStrings(): ToolbarStrings {
     rawMarkdownLabel: vscode.l10n.t('Raw markdown'),
     rawMarkdownTooltipOn: vscode.l10n.t('Raw markdown: on (click to go back to the composed view)'),
     rawMarkdownTooltipOff: vscode.l10n.t('Raw markdown: off (click to view the raw markdown)'),
+    versionTooltip: vscode.l10n.t('Texto version {0}', version),
   };
 }
 
@@ -57,6 +58,7 @@ const BUTTON_IDS = [
   'align-right',
   'focus-mode',
   'raw-markdown',
+  'version',
 ] as const;
 
 function commandFor(id: string): string | vscode.Command {
@@ -70,6 +72,7 @@ function commandFor(id: string): string | vscode.Command {
   if (id === 'size-value') return 'texto.resetTextSize';
   if (id === 'size-increase') return 'texto.increaseTextSize';
   if (id === 'focus-mode') return 'texto.toggleFocusMode';
+  if (id === 'version') return 'texto.showVersion';
   return 'texto.toggleRawMarkdown'; // raw-markdown
 }
 
@@ -87,6 +90,11 @@ function commandFor(id: string): string | vscode.Command {
 export class EditorToolbar {
   private readonly items = new Map<string, vscode.StatusBarItem>();
   private visible = false;
+  // The running version, from the manifest. Handed in by
+  // `WritingEditorProvider.register()` rather than taken as a constructor
+  // argument: this class is instantiated as a static field, before any
+  // `vscode.ExtensionContext` exists to read `extension.packageJSON` from.
+  private version = '';
 
   constructor() {
     // Priorities descending in display order, immediately after the word
@@ -102,8 +110,12 @@ export class EditorToolbar {
     }
   }
 
+  public setVersion(version: string): void {
+    this.version = version;
+  }
+
   public refresh(preferences: WritingEditorPreferences, rawMarkdownActive: boolean): void {
-    for (const spec of buildAllToolbarButtons(preferences, rawMarkdownActive, resolveToolbarStrings())) {
+    for (const spec of buildAllToolbarButtons(preferences, rawMarkdownActive, this.version, resolveToolbarStrings(this.version))) {
       const item = this.items.get(spec.id);
       if (!item) {
         continue;

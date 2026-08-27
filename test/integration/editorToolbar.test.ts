@@ -131,6 +131,17 @@ suite('US-021: the toolbar buttons', () => {
     assert.ok(api.getToolbarButtonState('raw-markdown')!.text.includes('$(code)'));
   });
 
+  test('the version button shows the version the manifest declares', async () => {
+    fileUri = await createScratchFile('Un párrafo.');
+    await openInWritingEditor(fileUri);
+    const api = await getExtensionApi();
+
+    const button = await waitFor(() => api.getToolbarButtonState('version'), 'the version button to appear');
+    const declared = (vscode.extensions.getExtension('asiermarques.texto')!.packageJSON as { version: string }).version;
+    assert.strictEqual(button.text, `$(info) Texto ${declared}`);
+    assert.strictEqual(button.tooltip, `Texto version ${declared}`);
+  });
+
   test('RISK-007: leaving the Writing editor hides the toolbar, returning to it shows it again', async () => {
     fileUri = await createScratchFile('Un párrafo.');
     await openInWritingEditor(fileUri);

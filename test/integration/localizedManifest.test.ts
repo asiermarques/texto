@@ -58,6 +58,7 @@ suite('US-004: the manifest speaks both languages', () => {
       'texto.decreaseTextSize': 'command.decreaseTextSize.title',
       'texto.resetTextSize': 'command.resetTextSize.title',
       'texto.toggleRawMarkdown': 'command.toggleRawMarkdown.title',
+      'texto.showVersion': 'command.showVersion.title',
       'texto.openWithTexto': 'command.openWithTexto.title',
       'texto.openAsMarkdown': 'command.openAsMarkdown.title',
     };

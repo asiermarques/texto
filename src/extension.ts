@@ -76,6 +76,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<TextoE
     })
   );
 
+  // The toolbar's version button, and the same answer from the palette:
+  // "which Texto am I running" is the first thing a bug report needs, and
+  // the manifest is the only source of truth for it. The message reuses the
+  // button's own tooltip string, so both surfaces say the same thing in
+  // both languages.
+  const version = String(context.extension.packageJSON.version);
+  context.subscriptions.push(
+    vscode.commands.registerCommand('texto.showVersion', async () => {
+      await vscode.window.showInformationMessage(vscode.l10n.t('Texto version {0}', version));
+    })
+  );
+
   // US-023/US-024: the context menu's resource argument is only there when
   // invoked from the explorer or a tab's own menu; from the palette (or the
   // tab menu, which VSCode also calls with no argument in some versions)
