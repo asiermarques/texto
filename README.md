@@ -4,9 +4,9 @@
 book typography, no distractions — and your text stays a plain `.md` file in
 your own git repository.
 
-[![Visual Studio Marketplace](https://img.shields.io/visual-studio-marketplace/v/asiermarques.texto?label=Marketplace)](https://marketplace.visualstudio.com/items?itemName=asiermarques.texto)
-[![Installs](https://img.shields.io/visual-studio-marketplace/i/asiermarques.texto)](https://marketplace.visualstudio.com/items?itemName=asiermarques.texto)
+[![VS Code Marketplace](https://img.shields.io/badge/VS%20Code-Marketplace-0098FF)](https://marketplace.visualstudio.com/items?itemName=asiermarques.texto)
 [![Open VSX](https://img.shields.io/open-vsx/v/asiermarques/texto?label=Open%20VSX)](https://open-vsx.org/extension/asiermarques/texto)
+[![Downloads](https://img.shields.io/open-vsx/dt/asiermarques/texto?label=downloads)](https://open-vsx.org/extension/asiermarques/texto)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Open a `.md` file with Texto and the `#`, the `*` and the `---` step out of
