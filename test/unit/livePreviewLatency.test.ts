@@ -23,11 +23,13 @@ import { buildChapterFixture } from '../fixtures/chapterFixture';
  *
  * The budget stays deliberately loose — an order-of-magnitude alarm, not a
  * second pass/fail scale (NOGOAL-001 of requirement 007; **Operation
- * count**, `test/performance/performanceCheck.test.ts`, is the scale). This
- * suite runs sharing the machine's CPU with the rest of `test:unit`, so the
- * budget has to survive that noise, not just a clean, isolated run. Same
- * shape as before: 20 samples, the median, not a single reading — one slow
- * tick from GC or OS scheduling shouldn't decide the result.
+ * count**, `test/performance/performanceCheck.test.ts`, is the scale). It
+ * only holds its headroom because `test:unit` runs its files serially
+ * (`fileParallelism: false`, `vitest.config.ts`): in parallel workers this
+ * reading is the runner's load, not the keystroke's cost, and it inflated
+ * past the budget as the suite grew. Same shape as before: 20 samples, the
+ * median, not a single reading — one slow tick from GC or OS scheduling
+ * shouldn't decide the result.
  *
  * Result (see the console output when this test runs): the incremental path
  * stays near-constant across the two sizes, unlike the full parse it
