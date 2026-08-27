@@ -68,7 +68,12 @@ export type ExtensionToWebviewMessage =
   // Unfolds the Frontmatter into the Writing surface, or folds it away
   // again — the same Compartment reconfigure, and the same active-panel-only
   // routing, as toggleRawMarkdown above.
-  | { readonly type: 'toggleFrontmatter' };
+  | { readonly type: 'toggleFrontmatter' }
+  // US-005 (009): the palette half of the insert-Table command. The webview
+  // holds keyboard focus, so its own keymap carries the shortcut; the
+  // command routes here through the same active-panel path the text size
+  // commands use (RISK-007 of 002).
+  | { readonly type: 'insertTable' };
 
 /**
  * Applies a batch of original-offset changes to a plain string. Used to

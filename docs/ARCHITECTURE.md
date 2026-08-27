@@ -101,10 +101,14 @@ installer.
     cursor move (wrapping the shared `parser`'s own `parse` method and
     counting calls, split by whether fragments travelled with them — no
     production instrumentation — against a real `EditorState` holding
-    `src/webview/treeField.ts`'s incremental `StateField`), **Live preview**
-    instructions and **Focus mode** dim ranges (already the pure analysers'
-    return values), and the byte size of both built (and, since 008,
-    minified) bundles, all against the same **Chapter** fixture
+    `src/webview/treeField.ts`'s incremental `StateField`), the same two
+    counts plus the number of changed ranges for a keystroke landing inside
+    a **Table**'s **Cell** (requirement 009, US-004: the padding path, run
+    through the **Writing surface**'s own
+    `src/webview/tablePaddingPlugin.ts` rather than a copy of it), **Live
+    preview** instructions and **Focus mode** dim ranges (already the pure
+    analysers' return values), and the byte size of both built (and, since
+    008, minified) bundles, all against the same **Chapter** fixture
     `test/unit/livePreviewLatency.test.ts` uses
     (`test/fixtures/chapterFixture.ts`). Every metric is compared for exact
     equality against `test/performance/baseline.json`, committed to the
@@ -300,6 +304,27 @@ installer.
   A **Table** reveals whole, not by line like every other block construct:
   a **Row**'s raw markdown is only readable next to the other **Rows**'.
   Rationale and the discarded options: `docs/adr/0003-tables-compose-without-a-widget.md`.
+- **A Table's source is padded by the keystroke's own transaction
+  (requirement 009).** Typing inside a **Cell** re-pads that **Table**'s
+  **Rows** and **Delimiter row** in the file, which is the one place this
+  project writes bytes the **Author** did not type — BR-001 of requirement
+  006 ("nothing writes bytes except an explicit **Author** action") is
+  superseded for **Tables** only, and for nothing else. The padding must
+  share the keystroke's undo step or a single undo would leave a half-padded
+  **Table** behind, and the webview's changes reach the `TextDocument` as one
+  `WorkspaceEdit` per `edit` message — so a separately dispatched padding
+  edit would be a second undo step by construction. The shape that answers
+  this is an `EditorState.transactionFilter`
+  (`src/webview/tablePaddingPlugin.ts`) returning *two* specs: CodeMirror
+  combines them into one transaction, and `sequential: true` says the
+  padding's offsets are into the document the keystroke just produced. It
+  reads the tree off `startState` and maps the **Table**'s range through the
+  change rather than looking it up again — reading `transaction.state` in a
+  filter forces a state CodeMirror then discards and rebuilds, which would
+  be a second **Tree update** per keystroke. The decision on the padded form
+  itself (a leading and trailing pipe on every **Row**, the **Delimiter
+  row**'s dashes filling the column) is the **Author**'s, taken before the
+  first byte was written; the pure part is `src/domain/tablePadding.ts`.
 - **A Diagram is the one widget, and it is loaded separately (requirement
   010).** A **Code block** fenced ```` ```mermaid ```` composes as the picture
   its **Diagram source** describes. Unlike a **Table**'s grid, this cannot be

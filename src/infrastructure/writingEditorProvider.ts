@@ -120,6 +120,15 @@ export class WritingEditorProvider implements vscode.CustomTextEditorProvider {
     void WritingEditorProvider.panels.get(uriString)?.webview.postMessage({ type: 'toggleRawMarkdown' } satisfies ExtensionToWebviewMessage);
   }
 
+  /** US-005 (009): the active panel writes the skeleton itself — only the webview knows where the cursor is. */
+  public static insertTable(): void {
+    const uriString = WritingEditorProvider.activeUri ?? WritingEditorProvider.lastActiveUri;
+    if (!uriString) {
+      return;
+    }
+    void WritingEditorProvider.panels.get(uriString)?.webview.postMessage({ type: 'insertTable' } satisfies ExtensionToWebviewMessage);
+  }
+
   public static panelFor(uri: vscode.Uri): vscode.WebviewPanel | undefined {
     return WritingEditorProvider.panels.get(uri.toString());
   }

@@ -10,9 +10,12 @@ import { treeField } from './treeField';
 import { toggleInlineWrap } from '../domain/inlineFormatting';
 import { isLikelyUrl, pasteUrlOverSelection, wrapSelectionAsLink } from '../domain/linkEditing';
 import { computeEnterContinuation } from '../domain/listContinuation';
+import { computeCellNavigation, insertTableSkeleton, type CellDirection } from '../domain/tableEditing';
+import { tableRangeAt } from '../domain/tablePadding';
 import { toggleTaskMarkerAt } from '../domain/taskToggle';
 import { frontmatterFold, foldedFrontmatterEnd } from './frontmatterFold';
 import { livePreview, redrawDiagrams } from './livePreviewPlugin';
+import { tablePadding } from './tablePaddingPlugin';
 import { focusMode } from './focusModePlugin';
 import { noFocusRingTheme } from './noFocusRingTheme';
 
@@ -264,6 +267,57 @@ function continueListOnEnter(view: EditorView): boolean {
 
 const listContinuationKeymap: readonly KeyBinding[] = [{ key: 'Enter', run: continueListOnEnter }];
 
+/**
+ * US-005 (009): writes the empty Table skeleton at the cursor and lands in
+ * its first Cell. Shared by the keymap below and by the `insertTable`
+ * message the palette command sends — one behaviour, two ways in.
+ */
+function insertTable(view: EditorView): boolean {
+  const result = insertTableSkeleton(view.state.doc.toString(), view.state.selection.main.from);
+  view.dispatch({ changes: result.changes, selection: result.selection });
+  return true;
+}
+
+// Mod-Alt-T, not a plain Mod-T: VSCode owns Cmd/Ctrl+T (Go to Symbol in
+// Workspace) at the workbench level, the same competition Text size's
+// Mod-Alt-=/Mod-Alt-- and Mod-Alt-K already had to be given a way around
+// (RISK-002). This one starts on the alternate binding rather than falling
+// back to it.
+const insertTableKeymap: readonly KeyBinding[] = [{ key: 'Mod-Alt-t', run: insertTable, preventDefault: true }];
+
+/**
+ * US-006 (009): Tab and Shift-Tab between the Cells of the Table holding
+ * the cursor, appending a Row when Tab runs out of them.
+ *
+ * No `preventDefault` on these two, unlike every other binding here: it
+ * prevents further handling of the key event whether or not the command
+ * returned true, and Tab outside a Table has to keep doing exactly what it
+ * does today. Returning false is what lets it.
+ */
+function moveBetweenCells(direction: CellDirection): (view: EditorView) => boolean {
+  return (view) => {
+    const selection = view.state.selection.main;
+    if (!selection.empty) {
+      return false;
+    }
+    const table = tableRangeAt(view.state.field(treeField), selection.from);
+    if (!table) {
+      return false;
+    }
+    const result = computeCellNavigation(view.state.doc.toString(), table, selection.from, direction);
+    if (!result) {
+      return false;
+    }
+    view.dispatch({ changes: result.changes, selection: result.selection });
+    return true;
+  };
+}
+
+const cellNavigationKeymap: readonly KeyBinding[] = [
+  { key: 'Tab', run: moveBetweenCells('next') },
+  { key: 'Shift-Tab', run: moveBetweenCells('previous') },
+];
+
 // No undo/redo keymap here on purpose: VSCode owns undo/redo on the
 // TextDocument (Cmd+Z/Cmd+Shift+Z are handled by the workbench for the
 // active custom editor and are not intercepted here), and the resulting
@@ -291,7 +345,13 @@ function createExtensions(focusModeEnabled: boolean) {
     keymap.of(textSizeKeymap),
     keymap.of(formattingKeymap),
     keymap.of(listContinuationKeymap),
+    keymap.of(insertTableKeymap),
+    keymap.of(cellNavigationKeymap),
     keymap.of(defaultKeymap),
+    // EDGE-005: a change we didn't originate (a git checkout arriving while
+    // the cursor sits in a Table) rebuilds the grid, and must not be
+    // answered as if the Author had typed — NOGOAL-005.
+    tablePadding(() => applyingExternalChange),
     updateListener,
     clickHandler,
     pasteLinkHandler,
@@ -545,6 +605,7 @@ window.addEventListener('message', (event: MessageEvent<ExtensionToWebviewMessag
         metaKey: (message.mod ?? false) && isMac,
         ctrlKey: (message.mod ?? false) && !isMac,
         altKey: message.altKey ?? false,
+        shiftKey: message.shiftKey ?? false,
         bubbles: true,
         cancelable: true,
       });
@@ -623,6 +684,12 @@ window.addEventListener('message', (event: MessageEvent<ExtensionToWebviewMessag
     rawMarkdownActive = !rawMarkdownActive;
     applyComposition();
     postToExtension({ type: 'rawMarkdownChanged', enabled: rawMarkdownActive });
+    return;
+  }
+
+  if (message.type === 'insertTable') {
+    insertTable(view);
+    view.focus();
     return;
   }
 

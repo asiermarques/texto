@@ -813,3 +813,51 @@ describe('computeLivePreviewInstructions — US-002 of 009: Column alignment', (
     expect(cellClasses(text).every((c) => c === 'cm-live-table-cell')).toBe(true);
   });
 });
+
+/**
+ * Found while building US-005's empty skeleton, and a defect in US-001's
+ * composition rather than in US-005: a Cell with nothing in it produces no
+ * `TableCell` node at all (`|  | b |` hands the parser's own traversal ONE
+ * cell, not two), so counting nodes gave the second column's Cell the
+ * first column's width and alignment, and dropped an all-empty column out
+ * of the grid entirely. The columns are read off the Row's pipes instead.
+ */
+describe('computeLivePreviewInstructions — US-001 of 009: a Table with empty Cells', () => {
+  it('gives a Cell the alignment of its own column when an earlier Cell is empty', () => {
+    const text = '| a | b |\n|:--|--:|\n|  | dos |';
+
+    // "a" and "b" of the Header row, then the last Row's empty first Cell
+    // and "dos" — whose column is the second, right-aligned one, not the
+    // first.
+    expect(cellClasses(text)).toEqual([
+      'cm-live-table-cell',
+      'cm-live-table-cell cm-live-table-cell-right',
+      'cm-live-table-cell',
+      'cm-live-table-cell cm-live-table-cell-right',
+    ]);
+  });
+
+  it('lays out a Table whose Cells are all empty, so a freshly inserted skeleton is visible', () => {
+    // US-005's skeleton exactly: two columns, nothing written in them yet.
+    const text = '|   |   |\n|---|---|\n|   |   |';
+    const marks = computeLivePreviewInstructions(text, FAR_AWAY).filter((i) => i.kind === 'mark');
+
+    expect(marks).toHaveLength(4);
+    for (const mark of marks) {
+      expect(mark.from, 'an empty Cell needs a range of its own to carry its column width').toBeLessThan(mark.to);
+      expect(mark.attributes?.style, 'an empty Cell carries no column width').toMatch(/width: \d/);
+    }
+  });
+
+  it('keeps the columns of a Table with an empty Cell the same width in every Row', () => {
+    const text = '| a | b |\n|---|---|\n|  | dos |';
+    const styles = computeLivePreviewInstructions(text, FAR_AWAY)
+      .filter((i) => i.kind === 'mark')
+      .map((i) => i.attributes?.style);
+
+    // Header "a" and the empty Cell under it are the same column.
+    expect(styles[0]).toBe(styles[2]);
+    // Header "b" and "dos" are the other one.
+    expect(styles[1]).toBe(styles[3]);
+  });
+});

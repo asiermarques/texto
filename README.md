@@ -489,6 +489,27 @@ editor theme's, and the renderer it needs is only downloaded by a chapter
 that actually contains a diagram. A diagram that can't be drawn — because
 you're halfway through writing it — simply shows its source.
 
+**Tables.** A table reads as a grid — columns aligned, pipes and the
+`|---|` line gone, the header set apart and the whole thing kept inside the
+measure, wrapping rather than bleeding into the margins. Put the cursor
+anywhere in it and the *whole* table turns back into markdown, not just the
+row you're on: a row's pipes are only readable next to the other rows'. The
+alignment markers work — `:---`, `---:`, `:---:` put a column's cells left,
+right or centred.
+
+Tables are also the one thing this editor writes for you. While you're
+typing in a cell, it keeps that table's columns padded **in the file**, so
+the `.md` stays readable in a diff and on GitHub without you ever lining it
+up by hand — and since the raw markdown is what you're looking at under the
+cursor, you watch it happen. It only ever adds and removes spaces: your
+cells' contents, the number of rows and columns, and the alignment markers
+are never touched. One undo takes back both what you typed and the padding
+it caused. Nothing is padded on open or on save, so a table you never touch
+is left exactly as you found it.
+
+`Cmd+Alt+T` / `Ctrl+Alt+T` starts an empty one, and `Tab` fills it — see the
+shortcut table above.
+
 **Not composed, shown and kept exactly as written:**
 
 - **HTML**, inline or block.
@@ -514,6 +535,8 @@ even without a selection):
 | `Cmd+K` / `Ctrl+K` | Wraps the selection as `[text]()`, cursor left on the target |
 | `Cmd+Alt+K` / `Ctrl+Alt+K` | Same as `Cmd+K` — use this if your VSCode swallows `Cmd+K` first as its own shortcut chord (`Cmd+K Cmd+S`, `Cmd+K V`, …) |
 | Paste a URL over a selection | Turns the selection into a Link with the pasted URL as target; pasting over a selection that already is a Link's text replaces only its target |
+| `Cmd+Alt+T` / `Ctrl+Alt+T` | Inserts an empty table at the cursor, on a line of its own, cursor in the first cell (also *Texto: Insert table* in the palette). `Alt` is not a fallback here — VSCode owns plain `Cmd+T` itself |
+| `Tab` / `Shift+Tab` inside a table | Moves to the next / previous cell, wrapping across rows. `Tab` in the last cell of the last row adds a row, aligned to the columns you already have. Outside a table, `Tab` does whatever it did before |
 | `Enter` inside a list item, a Task or a blockquote | Continues it — next bullet, next number, an empty (unchecked) Task box, another `>` — and on an *empty* item, removes the marker and leaves the block instead |
 | Click a Task's box | Toggles `[ ]` ↔ `[x]` in the file |
 | `Cmd`/`Ctrl`+click a Link | Opens its target with VSCode's own link handling — the Writing editor never navigates on its own |

@@ -3,6 +3,7 @@ import { computeLivePreviewInstructions as computeLivePreviewInstructionsFromTre
 import { computeDimmedRanges as computeDimmedRangesFromTree } from '../../src/domain/focusMode';
 import { countWordsInRange as countWordsInRangeFromTree } from '../../src/domain/wordCount';
 import type { SelectionRange } from '../../src/domain/selectionOverlap';
+import { computeTablePadding as computeTablePaddingInRange, tableRangeAt, type TablePaddingResult } from '../../src/domain/tablePadding';
 
 /**
  * US-003 (008): the three pure analysers now take an already-parsed tree
@@ -25,4 +26,15 @@ export function computeDimmedRanges(text: string, selection: SelectionRange): Se
 
 export function countWordsInRange(text: string, from: number, to: number): number {
   return countWordsInRangeFromTree(parser.parse(text), text, from, to);
+}
+
+/**
+ * US-003 of 009: the same wrapper, for the padding — which takes the
+ * **Table**'s range rather than finding it, because the **Writing
+ * surface** already has both the tree (`treeField`) and, after a
+ * keystroke, the range mapped through it.
+ */
+export function computeTablePadding(text: string, pos: number): TablePaddingResult | null {
+  const range = tableRangeAt(parser.parse(text), pos);
+  return range ? computeTablePaddingInRange(text, range, pos) : null;
 }

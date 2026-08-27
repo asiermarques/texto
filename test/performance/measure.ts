@@ -1,11 +1,12 @@
 import { statSync } from 'node:fs';
 import { join } from 'node:path';
-import { EditorState } from '@codemirror/state';
+import { EditorState, type Transaction } from '@codemirror/state';
 import { computeDimmedRanges } from '../../src/domain/focusMode';
 import { computeLivePreviewInstructions } from '../../src/domain/livePreview';
 import { parser } from '../../src/domain/markdownParser';
 import { treeField } from '../../src/webview/treeField';
-import { buildChapterFixture } from '../fixtures/chapterFixture';
+import { tablePadding } from '../../src/webview/tablePaddingPlugin';
+import { buildChapterFixture, MEASURED_TABLE_CELL } from '../fixtures/chapterFixture';
 
 /**
  * The **Operation count** measurements themselves (requirement 007),
@@ -53,6 +54,13 @@ function countParseCalls(run: () => void, kind: 'full' | 'incremental'): number 
   }
 }
 
+/** How many separate ranges one transaction changes — the composed change set the extension host receives as a single `WorkspaceEdit`. */
+function countChangedRanges(transaction: Transaction): number {
+  let ranges = 0;
+  transaction.changes.iterChanges(() => void ranges++);
+  return ranges;
+}
+
 export function measureOperationCounts(): Record<string, number> {
   const fixture = buildChapterFixture(24);
   const cursor = { from: Math.floor(fixture.length / 2), to: Math.floor(fixture.length / 2) };
@@ -68,6 +76,21 @@ export function measureOperationCounts(): Record<string, number> {
   // opening a Chapter (EDGE-001), deliberately outside the counted region
   // below since it is not on the typing path.
   const initialState = EditorState.create({ doc: fixture, extensions: [treeField] });
+
+  // US-004 (009): the keystroke-inside-a-Table path. The Writing surface's
+  // own extension (`src/webview/tablePaddingPlugin.ts`), not a copy of it,
+  // for the same reason `report.ts` and `performanceCheck.test.ts` share
+  // this file: a measurement that is not the thing it measures drifts.
+  // `() => false` is the webview's `applyingExternalChange` flag, which is
+  // only ever true while an edit from the extension host is being applied
+  // — never on the typing path this measures.
+  const tableCursor = fixture.indexOf(MEASURED_TABLE_CELL) + MEASURED_TABLE_CELL.length;
+  const tableState = EditorState.create({
+    doc: fixture,
+    selection: { anchor: tableCursor },
+    extensions: [treeField, tablePadding(() => false)],
+  });
+  const typeInsideTable = () => tableState.update({ changes: { from: tableCursor, insert: 'x' } });
 
   return {
     // One document change (a keystroke), through the real incremental path:
@@ -95,6 +118,27 @@ export function measureOperationCounts(): Record<string, number> {
     treeUpdatesPerCursorMove: countParseCalls(() => {
       initialState.update({ selection: { anchor: Math.max(0, cursor.from - 1) } }).state.field(treeField);
     }, 'incremental'),
+    // US-004 (009): the same two counts for a keystroke that lands inside
+    // a Cell, where PD-002 is least forgiving and RISK-001 lives. The
+    // padding is a second document change, and the whole question this
+    // metric exists to answer is whether it is also a second parse or a
+    // second Tree update: it is neither — the padding travels in the
+    // keystroke's own transaction (BR-001's undo step), so the state is
+    // built once and the tree updated once, exactly as for a keystroke
+    // anywhere else.
+    parsesPerTableKeystroke: countParseCalls(() => {
+      typeInsideTable().state.field(treeField);
+    }, 'full'),
+    treeUpdatesPerTableKeystroke: countParseCalls(() => {
+      typeInsideTable().state.field(treeField);
+    }, 'incremental'),
+    // What that keystroke actually costs the document: the ranges of the
+    // one composed change set reaching the TextDocument — the typed
+    // character plus the spaces every other Row needed to follow it. A
+    // Chapter's ordinary keystroke costs one; anything that re-padded twice
+    // per keystroke, or padded Rows it had no reason to touch, moves this
+    // number and nothing else.
+    documentChangesPerTableKeystroke: countChangedRanges(typeInsideTable()),
     livePreviewInstructions: computeLivePreviewInstructions(tree, fixture, cursor).length,
     dimRanges: computeDimmedRanges(tree, fixture, cursor).length,
     extensionBundleBytes: statSync(join(distDir, 'extension.js')).size,

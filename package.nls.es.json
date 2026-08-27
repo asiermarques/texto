@@ -17,6 +17,7 @@
   "command.resetTextSize.title": "Texto: Restablecer tamaño de texto",
   "command.toggleRawMarkdown.title": "Texto: Ver markdown",
   "command.toggleFrontmatter.title": "Texto: Mostrar u ocultar el frontmatter",
+  "command.insertTable.title": "Texto: Insertar tabla",
   "command.showVersion.title": "Texto: Ver versión",
   "command.openWithTexto.title": "Abrir con Texto",
   "command.openAsMarkdown.title": "Abrir como markdown"

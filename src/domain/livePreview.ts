@@ -286,6 +286,44 @@ export function computeLivePreviewInstructions(tree: Tree, text: string, selecti
   }
 
   /**
+   * The columns of one Row, as the spans between its pipes — not as its
+   * `TableCell` children. A Cell with nothing in it produces no `TableCell`
+   * node at all (`|  | b |` hands over ONE, not two), so counting nodes
+   * gave the second column's Cell the first column's width and alignment,
+   * and dropped an all-empty column out of the grid entirely. Found while
+   * building US-005's empty skeleton, which is nothing but empty Cells.
+   *
+   * The leading and trailing pipes bound the Row rather than separating
+   * anything, so the empty spans they leave at either end are not columns —
+   * the same reading `tablePadding.ts` gives a Row written without them.
+   */
+  function rowColumns(row: SyntaxNode): { readonly from: number; readonly to: number; readonly cell: SyntaxNode | null }[] {
+    const pipes: SyntaxNode[] = [];
+    const cells: SyntaxNode[] = [];
+    for (let child = row.firstChild; child; child = child.nextSibling) {
+      if (child.type.name === 'TableDelimiter') {
+        pipes.push(child);
+      } else if (child.type.name === 'TableCell') {
+        cells.push(child);
+      }
+    }
+    const spans: { from: number; to: number }[] = [];
+    let from = row.from;
+    for (const pipe of pipes) {
+      spans.push({ from, to: pipe.from });
+      from = pipe.to;
+    }
+    spans.push({ from, to: row.to });
+    if (spans.length > 1 && spans[0].from === spans[0].to) {
+      spans.shift();
+    }
+    if (spans.length > 1 && spans[spans.length - 1].from === spans[spans.length - 1].to) {
+      spans.pop();
+    }
+    return spans.map((span) => ({ ...span, cell: cells.find((cell) => cell.from >= span.from && cell.to <= span.to) ?? null }));
+  }
+
+  /**
    * How wide each column is, as a share of the measure. Every Cell of a
    * column is given the same share in every Row, which is what makes the
    * columns line up — the Rows themselves are unrelated line boxes to the
@@ -315,26 +353,22 @@ export function computeLivePreviewInstructions(tree: Tree, text: string, selecti
     while (row) {
       const isHeader = row.type.name === 'TableHeader';
       if (isHeader || row.type.name === 'TableRow') {
-        let column = 0;
-        let cell = row.firstChild;
-        while (cell) {
-          if (cell.type.name === 'TableCell') {
-            // Code points, not UTF-16 units: "á" is one character on screen
-            // however it is encoded.
-            const content = text.slice(cell.from, cell.to);
-            const width = [...content].length;
-            widths[column] = Math.max(widths[column] ?? 0, width);
-            const longestWord = content
-              .split(/\s+/)
-              .reduce((longest, word) => Math.max(longest, [...word].length), 0);
-            words[column] = Math.max(words[column] ?? 0, Math.min(longestWord, LONGEST_PROTECTED_WORD));
-            if (isHeader) {
-              titles[column] = width;
-            }
-            column++;
+        rowColumns(row).forEach((span, column) => {
+          // Code points, not UTF-16 units: "á" is one character on screen
+          // however it is encoded. Never fewer than one: an all-empty
+          // column is still a column, and the padded source floors it at
+          // one character too (`tablePadding.ts`).
+          const content = span.cell ? text.slice(span.cell.from, span.cell.to) : '';
+          const width = Math.max(1, [...content].length);
+          widths[column] = Math.max(widths[column] ?? 0, width);
+          const longestWord = content
+            .split(/\s+/)
+            .reduce((longest, word) => Math.max(longest, [...word].length), 0);
+          words[column] = Math.max(words[column] ?? 0, Math.min(longestWord, LONGEST_PROTECTED_WORD));
+          if (isHeader) {
+            titles[column] = width;
           }
-          cell = cell.nextSibling;
-        }
+        });
       }
       row = row.nextSibling;
     }
@@ -401,25 +435,28 @@ export function computeLivePreviewInstructions(tree: Tree, text: string, selecti
     // only the pipes would leave the Author's padding — the very spaces
     // US-003 will be maintaining — sitting inside the composed column.
     let pos = row.from;
-    let column = 0;
-    let cell = row.firstChild;
-    while (cell) {
-      if (cell.type.name === 'TableCell') {
-        if (pos < cell.from) {
-          instructions.push({ kind: 'hide', from: pos, to: cell.from });
-        }
+    rowColumns(row).forEach((span, column) => {
+      // An empty Cell has no characters of its own to mark, so its column's
+      // whole span — the padding spaces between its two pipes — carries the
+      // box instead. Without it the column has nowhere to hang its width
+      // and drops out of the grid, which is every column of a freshly
+      // inserted skeleton (US-005).
+      const from = span.cell ? span.cell.from : span.from;
+      const to = span.cell ? span.cell.to : span.to;
+      if (pos < from) {
+        instructions.push({ kind: 'hide', from: pos, to: from });
+      }
+      if (from < to) {
         instructions.push({
           kind: 'mark',
-          from: cell.from,
-          to: cell.to,
+          from,
+          to,
           class: `cm-live-table-cell${alignments[column] ?? ''}`,
           attributes: columns.cells[column] !== undefined ? { style: columns.cells[column] } : undefined,
         });
-        pos = cell.to;
-        column++;
       }
-      cell = cell.nextSibling;
-    }
+      pos = to;
+    });
     if (pos < row.to) {
       instructions.push({ kind: 'hide', from: pos, to: row.to });
     }

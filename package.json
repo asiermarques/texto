@@ -65,6 +65,10 @@
         "title": "%command.toggleFrontmatter.title%"
       },
       {
+        "command": "texto.insertTable",
+        "title": "%command.insertTable.title%"
+      },
+      {
         "command": "texto.showVersion",
         "title": "%command.showVersion.title%"
       },

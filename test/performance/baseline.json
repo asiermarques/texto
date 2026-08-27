@@ -3,9 +3,12 @@
   "parsesPerCursorMove": 0,
   "treeUpdatesPerKeystroke": 1,
   "treeUpdatesPerCursorMove": 0,
-  "livePreviewInstructions": 1913,
-  "dimRanges": 433,
-  "extensionBundleBytes": 80498,
-  "webviewBundleBytes": 329822,
+  "parsesPerTableKeystroke": 0,
+  "treeUpdatesPerTableKeystroke": 1,
+  "documentChangesPerTableKeystroke": 5,
+  "livePreviewInstructions": 2780,
+  "dimRanges": 457,
+  "extensionBundleBytes": 80708,
+  "webviewBundleBytes": 335209,
   "mermaidBundleBytes": 1558788
 }

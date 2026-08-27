@@ -67,6 +67,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<TextoE
     })
   );
 
+  // US-005 (009): the palette half of inserting a Table, alongside the
+  // webview's own keymap (Mod-Alt-T). Routed to the active panel, not to a
+  // TextEditor: the cursor this writes at lives inside the webview.
+  context.subscriptions.push(
+    vscode.commands.registerCommand('texto.insertTable', () => {
+      WritingEditorProvider.insertTable();
+    })
+  );
+
   // US-021 (redesigned on Author feedback): the toolbar's Tema and
   // Alineación buttons, one command each carrying its own value as a
   // `Command.arguments` entry — not declared in package.json's `commands`

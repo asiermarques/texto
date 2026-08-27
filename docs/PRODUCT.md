@@ -95,6 +95,19 @@ technical decisions were.
   detail, and three full parses per keystroke had already accumulated
   unnoticed (`docs/adr/0001-incremental-shared-parse-and-lean-host-bundle.md`)
   before anything was watching.
+- **PD-009 — A Table's source is re-aligned as you type it; nothing else the
+  Author writes is ever rewritten.** Typing inside a **Cell** pads that
+  **Table**'s **Rows** and **Delimiter row** in the `.md` so its columns line
+  up in the file, in the same undo step as the keystroke. This is the only
+  case in the product where bytes reach the file that the **Author** did not
+  type, and it is deliberately narrow: it adds and removes spaces, never a
+  **Cell**'s content, the number of **Rows** or columns, or the **Column
+  alignment** markers, and it never runs on open, on save, or on a change
+  arriving from outside the editor. *Why:* PD-001 makes the `.md` the source
+  of truth, and it is read outside this editor — in diffs and on GitHub —
+  where an unpadded table is legal markdown and miserable to read; asking the
+  **Author** to align it by hand is asking them to do the one job a computer
+  is better at (`.workflow/requisites/009-markdown-table-composition.md`).
 
 ## MVP scope
 

@@ -142,8 +142,12 @@ export async function placeCursorAtPoint(panel: vscode.WebviewPanel, x: number, 
  * platform is actually running the test, so this passes the same way
  * locally (macOS) and in CI (Linux).
  */
-export async function pressKey(panel: vscode.WebviewPanel, key: string, modifiers: { mod?: boolean; alt?: boolean } = {}): Promise<void> {
-  const request: TestToWebviewMessage = { __test: true, type: 'keydown', key, mod: modifiers.mod, altKey: modifiers.alt };
+export async function pressKey(
+  panel: vscode.WebviewPanel,
+  key: string,
+  modifiers: { mod?: boolean; alt?: boolean; shift?: boolean } = {}
+): Promise<void> {
+  const request: TestToWebviewMessage = { __test: true, type: 'keydown', key, mod: modifiers.mod, altKey: modifiers.alt, shiftKey: modifiers.shift };
   await panel.webview.postMessage(request);
 }
 

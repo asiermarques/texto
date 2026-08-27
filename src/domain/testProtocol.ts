@@ -232,7 +232,7 @@ export type TestToWebviewMessage =
   // hard-coding `metaKey` here would only ever exercise the binding on a
   // macOS test runner, passing locally and failing on GitHub Actions' Linux
   // one.
-  | { readonly __test: true; readonly type: 'keydown'; readonly key: string; readonly mod?: boolean; readonly altKey?: boolean }
+  | { readonly __test: true; readonly type: 'keydown'; readonly key: string; readonly mod?: boolean; readonly altKey?: boolean; readonly shiftKey?: boolean }
   // US-014: a real DOM `paste` with the given text as its clipboard payload.
   | { readonly __test: true; readonly type: 'pasteText'; readonly text: string }
   // US-012: puts the DOM focus back on the editor explicitly. Whether the
