@@ -4,12 +4,14 @@ import { EditorView, keymap, type KeyBinding } from '@codemirror/view';
 import type { ExtensionToWebviewMessage, TextChange, TextSizeDirection, WebviewToExtensionMessage } from '../domain/textChange';
 import type { TestFromWebviewMessage, TestToWebviewMessage } from '../domain/testProtocol';
 import type { TextAlignment } from '../domain/preferences';
+import { proseStartOffset } from '../domain/frontmatter';
 import { countWordsInRange } from '../domain/wordCount';
 import { treeField } from './treeField';
 import { toggleInlineWrap } from '../domain/inlineFormatting';
 import { isLikelyUrl, pasteUrlOverSelection, wrapSelectionAsLink } from '../domain/linkEditing';
 import { computeEnterContinuation } from '../domain/listContinuation';
 import { toggleTaskMarkerAt } from '../domain/taskToggle';
+import { frontmatterFold, foldedFrontmatterEnd } from './frontmatterFold';
 import { livePreview } from './livePreviewPlugin';
 import { focusMode } from './focusModePlugin';
 import { noFocusRingTheme } from './noFocusRingTheme';
@@ -56,7 +58,11 @@ function reportSelectionWordCount(state: EditorState): void {
   const text = state.doc.toString();
   // US-004 (008): the same tree livePreviewPlugin.ts/focusModePlugin.ts read
   // — a selection change with no edit costs no parse (FR-002).
-  const count = selection.empty ? 0 : countWordsInRange(state.field(treeField), text, selection.from, selection.to);
+  // Clamped past the Frontmatter for the same reason `countWords` excludes
+  // it: metadata is not prose. Without this, Select all would report more
+  // words selected than the Chapter has in total.
+  const from = Math.max(selection.from, proseStartOffset(text));
+  const count = selection.empty || from >= selection.to ? 0 : countWordsInRange(state.field(treeField), text, from, selection.to);
   if (count === lastReportedSelectionWordCount) {
     return;
   }
@@ -73,12 +79,19 @@ const focusModeCompartment = new Compartment();
 // "ver markdown" can switch it off in place too.
 const livePreviewCompartment = new Compartment();
 
+// Frontmatter folds in and out the same way — one more Compartment, so the
+// toolbar button reconfigures the live view in place with no reload.
+const frontmatterCompartment = new Compartment();
+
 // US-022: panel-local, never persisted — a fresh panel always starts
 // composed (see the 'init' handler). `focusModeEnabledPreference` is tracked
 // separately from the compartment itself because raw markdown must override
 // it without losing what to restore once it's turned off again.
 let rawMarkdownActive = false;
 let focusModeEnabledPreference = true;
+// Frontmatter starts folded away on every fresh panel (see the 'init'
+// handler): panel state, never persisted, exactly like rawMarkdownActive.
+let frontmatterRevealed = false;
 
 /** Recomputes both compartments from the current preference + raw-view state — the one place either is decided. */
 function applyComposition(): void {
@@ -86,6 +99,11 @@ function applyComposition(): void {
     effects: [
       livePreviewCompartment.reconfigure(rawMarkdownActive ? [] : livePreview),
       focusModeCompartment.reconfigure(rawMarkdownActive || !focusModeEnabledPreference ? [] : focusMode),
+      // Raw markdown shows the Chapter exactly as it is on disk, so it
+      // outranks the fold: hiding something there would contradict the one
+      // thing that view is for (Author's choice). The Author's own toggle is
+      // remembered, not lost, and applies again on the way back.
+      frontmatterCompartment.reconfigure(rawMarkdownActive || frontmatterRevealed ? [] : frontmatterFold),
     ],
   });
 }
@@ -263,6 +281,9 @@ function createExtensions(focusModeEnabled: boolean) {
     noFocusRingTheme,
     livePreviewCompartment.of(livePreview),
     focusModeCompartment.of(focusModeEnabled ? focusMode : []),
+    // Folded from the first frame: a Chapter with Frontmatter must never
+    // flash its metadata before the fold lands.
+    frontmatterCompartment.of(frontmatterFold),
   ];
 }
 
@@ -515,8 +536,11 @@ window.addEventListener('message', (event: MessageEvent<ExtensionToWebviewMessag
     applyTextSize(message.textSize);
     applyAlignment(message.alignment);
     // US-022: a freshly opened panel always starts composed — raw markdown
-    // is panel state, never carried over from a previous session.
+    // is panel state, never carried over from a previous session. The same
+    // goes for the Frontmatter fold: a Chapter always opens with its
+    // metadata folded away.
     rawMarkdownActive = false;
+    frontmatterRevealed = false;
     focusModeEnabledPreference = message.focusModeEnabled;
     applyingExternalChange = true;
     view.setState(EditorState.create({ doc: message.text, extensions: createExtensions(message.focusModeEnabled) }));
@@ -559,7 +583,40 @@ window.addEventListener('message', (event: MessageEvent<ExtensionToWebviewMessag
     rawMarkdownActive = !rawMarkdownActive;
     applyComposition();
     postToExtension({ type: 'rawMarkdownChanged', enabled: rawMarkdownActive });
+    return;
+  }
+
+  if (message.type === 'toggleFrontmatter') {
+    frontmatterRevealed = !frontmatterRevealed;
+    if (!frontmatterRevealed) {
+      moveCursorOutOfFrontmatter();
+    }
+    applyComposition();
+    if (frontmatterRevealed) {
+      // Unfolding something the Author cannot see is the same as not
+      // unfolding it: the block is always at the very top of the Chapter, so
+      // showing it means going there. A separate dispatch, after
+      // applyComposition, so the scroll is measured against the layout that
+      // now has the block in it. The cursor is deliberately left where the
+      // Author was writing — this carries the view, not the caret.
+      view.dispatch({ effects: EditorView.scrollIntoView(0, { y: 'start' }) });
+    }
+    postToExtension({ type: 'frontmatterChanged', revealed: frontmatterRevealed });
   }
 });
+
+/**
+ * `atomicRanges` stops the cursor entering a fold, but it cannot evict one
+ * that was already inside when the fold appeared — an Author who was editing
+ * a field and then folds the block would be left typing into nothing. Moving
+ * the selection to the Chapter's first character is the only honest place
+ * for it to go.
+ */
+function moveCursorOutOfFrontmatter(): void {
+  const end = foldedFrontmatterEnd(view.state.doc);
+  if (end > 0 && view.state.selection.main.from < end) {
+    view.dispatch({ selection: { anchor: Math.min(end + 1, view.state.doc.length) } });
+  }
+}
 
 postToExtension({ type: 'ready' });

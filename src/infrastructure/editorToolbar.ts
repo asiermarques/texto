@@ -12,7 +12,7 @@ import type { WritingEditorPreferences } from '../domain/preferences';
  * cannot change without a window reload (EDGE-002), so this is cheap, not
  * cached.
  */
-function resolveToolbarStrings(version: string, frontmatterFieldCount: number): ToolbarStrings {
+function resolveToolbarStrings(version: string): ToolbarStrings {
   return {
     themeLabel: {
       light: vscode.l10n.t('Theme Light'),
@@ -44,13 +44,9 @@ function resolveToolbarStrings(version: string, frontmatterFieldCount: number): 
     rawMarkdownTooltipOn: vscode.l10n.t('Raw markdown: on (click to go back to the composed view)'),
     rawMarkdownTooltipOff: vscode.l10n.t('Raw markdown: off (click to view the raw markdown)'),
     versionTooltip: vscode.l10n.t('Texto version {0}', version),
-    // Two strings rather than one skeleton: the English inflects ("field" /
-    // "fields") and so does the Spanish, and a shared template would force
-    // one of the two to be wrong in at least one language.
-    frontmatterTooltip:
-      frontmatterFieldCount === 1
-        ? vscode.l10n.t('Frontmatter: {0} metadata field, not counted as prose', frontmatterFieldCount)
-        : vscode.l10n.t('Frontmatter: {0} metadata fields, not counted as prose', frontmatterFieldCount),
+    frontmatterLabel: vscode.l10n.t('Frontmatter'),
+    frontmatterTooltipRevealed: vscode.l10n.t('Frontmatter: shown (click to fold it away)'),
+    frontmatterTooltipFolded: vscode.l10n.t('Frontmatter: folded away (click to show it)'),
   };
 }
 
@@ -71,11 +67,7 @@ const BUTTON_IDS = [
 ] as const;
 
 function commandFor(id: string): string | vscode.Command | undefined {
-  // The Frontmatter indicator states something about the Chapter rather than
-  // offering an action: with no `.command` VSCode renders it as plain text,
-  // with no hover highlight and no pointer cursor, which is exactly what an
-  // indicator should look like next to ten real buttons.
-  if (id === 'frontmatter') return undefined;
+  if (id === 'frontmatter') return 'texto.toggleFrontmatter';
   if (id.startsWith('theme-')) {
     return { command: 'texto.setTheme', title: 'Tema', arguments: [id.slice('theme-'.length)] };
   }
@@ -134,13 +126,19 @@ export class EditorToolbar {
     this.version = version;
   }
 
-  public refresh(preferences: WritingEditorPreferences, rawMarkdownActive: boolean, frontmatter?: FrontmatterBlock): void {
+  public refresh(
+    preferences: WritingEditorPreferences,
+    rawMarkdownActive: boolean,
+    frontmatter: FrontmatterBlock | undefined,
+    frontmatterRevealed: boolean
+  ): void {
     const specs = buildAllToolbarButtons(
       preferences,
       rawMarkdownActive,
       this.version,
       frontmatter,
-      resolveToolbarStrings(this.version, frontmatter?.fields.length ?? 0)
+      frontmatterRevealed,
+      resolveToolbarStrings(this.version)
     );
     this.rendered = new Set(specs.map((spec) => spec.id));
 

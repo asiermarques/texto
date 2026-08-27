@@ -58,6 +58,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<TextoE
     })
   );
 
+  // The toolbar's Frontmatter button. Panel state like Raw markdown above,
+  // and routed the same way — there is no fold to toggle without a Writing
+  // editor in view.
+  context.subscriptions.push(
+    vscode.commands.registerCommand('texto.toggleFrontmatter', () => {
+      WritingEditorProvider.toggleFrontmatterView();
+    })
+  );
+
   // US-021 (redesigned on Author feedback): the toolbar's Tema and
   // Alineación buttons, one command each carrying its own value as a
   // `Command.arguments` entry — not declared in package.json's `commands`

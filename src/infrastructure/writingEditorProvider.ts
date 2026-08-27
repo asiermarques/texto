@@ -87,9 +87,28 @@ export class WritingEditorProvider implements vscode.CustomTextEditorProvider {
   // source of truth, this is just what it last reported.
   private static readonly rawMarkdownStates = new Map<string, boolean>();
 
+  // Frontmatter is folded out of the Writing surface by default; this is
+  // what the panel last reported about its own fold. Panel state, never
+  // persisted — the same shape, and the same reasons, as rawMarkdownStates.
+  private static readonly frontmatterRevealedStates = new Map<string, boolean>();
+
   /** US-021's toolbar reads this to label its "ver markdown" button; defaults to composed for an unknown/not-yet-reporting panel. */
   public static isRawMarkdownActive(uri: vscode.Uri): boolean {
     return WritingEditorProvider.rawMarkdownStates.get(uri.toString()) ?? false;
+  }
+
+  /** The toolbar reads this to label its Frontmatter button; a Chapter that has not reported yet is folded, the default. */
+  public static isFrontmatterRevealed(uri: vscode.Uri): boolean {
+    return WritingEditorProvider.frontmatterRevealedStates.get(uri.toString()) ?? false;
+  }
+
+  /** Toggles the *active* panel only, exactly like `toggleRawMarkdownView`. */
+  public static toggleFrontmatterView(): void {
+    const uriString = WritingEditorProvider.activeUri ?? WritingEditorProvider.lastActiveUri;
+    if (!uriString) {
+      return;
+    }
+    void WritingEditorProvider.panels.get(uriString)?.webview.postMessage({ type: 'toggleFrontmatter' } satisfies ExtensionToWebviewMessage);
   }
 
   /** Toggles the *active* panel only (RISK-007's tracking) — there is nothing to toggle if no Writing editor is focused. */
@@ -215,7 +234,8 @@ export class WritingEditorProvider implements vscode.CustomTextEditorProvider {
     WritingEditorProvider.toolbar.refresh(
       getPreferences(document.uri),
       WritingEditorProvider.isRawMarkdownActive(document.uri),
-      WritingEditorProvider.frontmatterOf(document)
+      WritingEditorProvider.frontmatterOf(document),
+      WritingEditorProvider.isFrontmatterRevealed(document.uri)
     );
   }
 
@@ -422,6 +442,11 @@ export class WritingEditorProvider implements vscode.CustomTextEditorProvider {
       }
       if (message.type === 'rawMarkdownChanged') {
         WritingEditorProvider.rawMarkdownStates.set(document.uri.toString(), message.enabled);
+        WritingEditorProvider.refreshToolbar(document);
+        return;
+      }
+      if (message.type === 'frontmatterChanged') {
+        WritingEditorProvider.frontmatterRevealedStates.set(document.uri.toString(), message.revealed);
         WritingEditorProvider.refreshToolbar(document);
         return;
       }

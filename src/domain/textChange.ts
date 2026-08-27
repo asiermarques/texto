@@ -30,6 +30,11 @@ export type WebviewToExtensionMessage =
   // US-022: panel-local state, not a setting — reported so US-021's menu can
   // show the current value, but never persisted anywhere.
   | { readonly type: 'rawMarkdownChanged'; readonly enabled: boolean }
+  // Frontmatter is folded out of the Writing surface by default; the toolbar
+  // button asks the panel to toggle it, and the panel reports back so the
+  // button can show which way it stands. Panel state, never persisted —
+  // exactly like rawMarkdownChanged above.
+  | { readonly type: 'frontmatterChanged'; readonly revealed: boolean }
   // US-007 (006, BR-004/DEC-001): Cmd/Ctrl+click on a composed Link. The
   // webview never navigates itself — it only posts the target, and the
   // extension host opens it with vscode.env.openExternal.
@@ -59,7 +64,11 @@ export type ExtensionToWebviewMessage =
   // Compartment reconfigure, like Focus mode itself) — sent only to the
   // active panel, resolved host-side (WritingEditorProvider.activeUri, the
   // same tracking RISK-007/US-020 introduced).
-  | { readonly type: 'toggleRawMarkdown' };
+  | { readonly type: 'toggleRawMarkdown' }
+  // Unfolds the Frontmatter into the Writing surface, or folds it away
+  // again — the same Compartment reconfigure, and the same active-panel-only
+  // routing, as toggleRawMarkdown above.
+  | { readonly type: 'toggleFrontmatter' };
 
 /**
  * Applies a batch of original-offset changes to a plain string. Used to

@@ -16,6 +16,7 @@
   "command.decreaseTextSize.title": "Texto: Decrease text size",
   "command.resetTextSize.title": "Texto: Reset text size",
   "command.toggleRawMarkdown.title": "Texto: Raw markdown",
+  "command.toggleFrontmatter.title": "Texto: Show or fold away the frontmatter",
   "command.showVersion.title": "Texto: Show version",
   "command.openWithTexto.title": "Open with Texto",
   "command.openAsMarkdown.title": "Open as markdown"

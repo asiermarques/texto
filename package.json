@@ -61,6 +61,10 @@
         "title": "%command.toggleRawMarkdown.title%"
       },
       {
+        "command": "texto.toggleFrontmatter",
+        "title": "%command.toggleFrontmatter.title%"
+      },
+      {
         "command": "texto.showVersion",
         "title": "%command.showVersion.title%"
       },

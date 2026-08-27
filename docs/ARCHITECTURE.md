@@ -451,10 +451,16 @@ installer.
   message; that command *is* declared in `contributes.commands` (unlike
   `texto.setTheme`/`texto.setAlignment` it takes no argument, so the palette
   is a real second entrance to it, reachable with no Chapter open).
-- **The Frontmatter indicator is the toolbar's only entry that can be
-  absent.** It leads the group — like the Word count it sits beside, it
-  describes the Chapter rather than changing it — and carries no `.command`,
-  so VSCode renders it as plain text: an indicator, not a button.
+- **Frontmatter is folded out of the Writing surface, and the toolbar
+  button is the only way back.** It leads the button group, and it is the
+  toolbar's only entry that can be absent — a Chapter with no block has no
+  button. The fold shows *nothing* in its place: no placeholder, no marker,
+  not even the blank line that separated the block from the prose (Author's
+  choice), so the Chapter simply opens on its first paragraph. That is
+  precisely why the button has to exist: with nothing drawn, there is
+  nothing on the surface to click. It carries the same eye/eye-closed pair
+  as Focus mode, being the same kind of thing — a toggle whose state is
+  worth reading at a glance.
   `src/domain/frontmatter.ts` decides what counts as a block, for both
   fences an Author may write: `---` (YAML) and `+++` (TOML, what Hugo and
   its kin emit). The two are read with deliberately different strictness,
@@ -472,13 +478,51 @@ installer.
   Detection is line-based, and `WritingEditorProvider.frontmatterOf()` hands
   it only the Chapter's head — never `document.getText()`, which would copy
   a 30,000-word Chapter every time the toolbar settles. Because the
-  indicator can vanish, `EditorToolbar.refresh()` now hides whichever items
+  button can vanish, `EditorToolbar.refresh()` now hides whichever items
   the domain did not produce, instead of only ever showing: a status bar
   item keeps its last text until told otherwise, which is also why
   `getButtonState()` reports a real `visible` rather than letting the
   integration suite infer absence from an empty `.text`. It settles on the
   Word count's existing debounce — the same burst of keystrokes, the same
   question about the text, so a second timer would buy nothing.
+- **The fold is a decoration, never an edit (`src/webview/frontmatterFold.ts`).**
+  One `Decoration.replace({block: true})` over the block's lines, paired
+  with `EditorView.atomicRanges` exactly as `livePreviewPlugin.ts` pairs
+  them for hidden markers: the cursor steps over the fold instead of into
+  it, and a Backspace at the start of the first paragraph cannot eat an
+  invisible line. `atomicRanges` cannot evict a cursor that was *already*
+  inside when the fold appears, so `main.ts` moves the selection out before
+  folding. The text on disk is never touched. Like Raw markdown, the fold
+  lives in its own `Compartment`, is panel state that is never persisted (a
+  Chapter always opens folded), and is toggled by a message to the active
+  panel that the panel reports back (`frontmatterChanged`) so the button can
+  label itself. Raw markdown outranks it: that view exists to show the
+  Chapter exactly as it is on disk, so hiding something there would
+  contradict the one thing it is for — the Author's own toggle is
+  remembered, not lost, and applies again on the way back. Unfolding also
+  scrolls the view to the top (`EditorView.scrollIntoView(0, {y: 'start'})`,
+  dispatched after the compartment reconfigure so it measures against the
+  layout that now has the block in it): the block always sits at the very
+  top of the Chapter, so showing it to an Author reading page nine is the
+  same as not showing it at all. The caret is deliberately left where they
+  were writing — this carries the view, not the cursor.
+  *Testing note*: `scrollDOM.scrollTop` read back through the test protocol
+  reports 0 even while the view is demonstrably at the end of the Chapter —
+  the measurement lands before the browser has applied the scroll — so an
+  earlier attempt to expose it on `EditorSnapshot` was removed rather than
+  left as a trap. What is actually drawn is the reliable signal: CodeMirror
+  only builds the lines near the viewport, so `renderedText` says where the
+  Author is looking. Note also that re-sending `scrollToEnd` on every poll
+  livelocks the scroll (each dispatch reschedules CodeMirror's measure before
+  the last one lands) — send it once, then poll.
+- **Frontmatter is not prose, so the Word count skips it.** `countWords`
+  starts at `proseStartOffset(text)` rather than at 0. This is a fix, not a
+  refinement: lezer has no frontmatter extension, so it read `title: Caminos`
+  as a Paragraph and the closing `---` as the setext heading underlining it,
+  and every field counted as words the Author never wrote — a Chapter of
+  three words reported eight. The webview clamps the *selection* count the
+  same way, or Select all would report more words selected than the Chapter
+  has in total.
   No new source of truth either way: every button writes through the exact
   same setter functions the earlier stories' commands and the webview keymap
   already use.

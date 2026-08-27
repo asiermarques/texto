@@ -143,3 +143,43 @@ function detectYamlBlock(lines: readonly string[]): FrontmatterBlock | undefined
 
   return undefined; // no closing fence within reach
 }
+
+/**
+ * The offset the Chapter's prose starts at: just past the Frontmatter's
+ * closing fence, or 0 when there is no block. The one place that turns
+ * `detectFrontmatter`'s line numbers back into an offset into the raw text,
+ * so `countWords` and anything else host-side never has to split the
+ * Chapter itself.
+ *
+ * A trailing `\r` is stripped from each line before detection: this is the
+ * only entry point handed raw text rather than a `TextDocument`'s already
+ * EOL-free lines, and a CRLF Chapter must not read as having no block.
+ */
+export function proseStartOffset(text: string): number {
+  const head: string[] = [];
+  const lineStarts: number[] = [];
+  let offset = 0;
+
+  for (let line = 0; line < MAX_FRONTMATTER_LINES; line += 1) {
+    lineStarts.push(offset);
+    const newline = text.indexOf('\n', offset);
+    if (newline === -1) {
+      head.push(stripCarriageReturn(text.slice(offset)));
+      break;
+    }
+    head.push(stripCarriageReturn(text.slice(offset, newline)));
+    offset = newline + 1;
+  }
+
+  const block = detectFrontmatter(head);
+  if (!block) {
+    return 0;
+  }
+  // Everything up to and including the closing fence's own newline.
+  const afterFence = lineStarts[block.closeLine] + head[block.closeLine].length;
+  return Math.min(text.length, afterFence + (text.startsWith('\r\n', afterFence) ? 2 : 1));
+}
+
+function stripCarriageReturn(line: string): string {
+  return line.endsWith('\r') ? line.slice(0, -1) : line;
+}

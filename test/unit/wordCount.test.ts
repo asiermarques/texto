@@ -139,3 +139,19 @@ describe('formatWordCountStatus — US-020/US-006: the status bar label', () => 
     expect(formatWordCountStatus(1, 1, spanishStrings)).toBe('1 palabra (1 seleccionada)');
   });
 });
+
+describe('countWords — Frontmatter is metadata, not prose', () => {
+  it('counts only the prose of a Chapter that opens with a YAML block', () => {
+    expect(countWords('---\ntitle: Caminos\nauthor: Asier Marques\n---\n\nUn párrafo corto.')).toBe(3);
+  });
+
+  it('counts only the prose of a Chapter that opens with a TOML block', () => {
+    expect(countWords("+++\ntitle = 'Caminos'\ndescription = 'Un micro sobre caminos'\n+++\n\nUn párrafo corto.")).toBe(3);
+  });
+
+  it('still counts a Chapter that opens with a Scene break in full', () => {
+    // `---` here is a Scene break, so the prose after it is prose, and the
+    // rule itself is a marker the count already excludes.
+    expect(countWords('---\n\nUn párrafo corto.')).toBe(3);
+  });
+});

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { detectFrontmatter, MAX_FRONTMATTER_LINES } from '../../src/domain/frontmatter';
+import { detectFrontmatter, MAX_FRONTMATTER_LINES, proseStartOffset } from '../../src/domain/frontmatter';
 
 // The whole point of this module is telling Frontmatter apart from a Scene
 // break, which is written with the same three characters. Every "not
@@ -124,5 +124,30 @@ describe('detectFrontmatter — a Chapter with no block at all', () => {
 
     const short = ['---', ...Array.from({ length: MAX_FRONTMATTER_LINES - 2 }, (_, i) => `field${i}: valor`), '---'];
     expect(detectFrontmatter(short)).toBeDefined();
+  });
+});
+
+describe('proseStartOffset — where the Chapter actually begins', () => {
+  it('is 0 for a Chapter with no block', () => {
+    expect(proseStartOffset('Un párrafo.\n\nOtro.')).toBe(0);
+  });
+
+  it('lands just past the closing fence, so the prose starts at the next line', () => {
+    const text = '---\ntitle: Algo\n---\nUn párrafo.';
+    expect(text.slice(proseStartOffset(text))).toBe('Un párrafo.');
+  });
+
+  it('does the same for a TOML block', () => {
+    const text = "+++\ntitle = 'Caminos'\n+++\nUn párrafo.";
+    expect(text.slice(proseStartOffset(text))).toBe('Un párrafo.');
+  });
+
+  it('reads a CRLF Chapter, whose lines the caller has not stripped', () => {
+    const text = '---\r\ntitle: Algo\r\n---\r\nUn párrafo.';
+    expect(text.slice(proseStartOffset(text))).toBe('Un párrafo.');
+  });
+
+  it('is 0 when the Chapter opens with a Scene break, not a block', () => {
+    expect(proseStartOffset('---\n\nUna escena.\n\n---')).toBe(0);
   });
 });

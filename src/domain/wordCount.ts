@@ -1,4 +1,5 @@
 import type { SyntaxNode, Tree } from '@lezer/common';
+import { proseStartOffset } from './frontmatter';
 import { parser } from './markdownParser';
 
 /**
@@ -42,7 +43,12 @@ const MARKER_TYPES = new Set([
  * `parser.parse` itself.
  */
 export function countWords(text: string): number {
-  return countWordsInRange(parser.parse(text), text, 0, text.length);
+  // Frontmatter is metadata, not prose, and the parser has no idea: with no
+  // frontmatter extension, lezer reads `title: Caminos` as a Paragraph and
+  // the closing `---` as a setext heading underlining it, so every field
+  // would count as words the Author never wrote. Starting the count past the
+  // block is cheaper and more honest than teaching MARKER_TYPES about it.
+  return countWordsInRange(parser.parse(text), text, proseStartOffset(text), text.length);
 }
 
 /**
