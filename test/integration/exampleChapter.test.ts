@@ -56,6 +56,11 @@ suite('US-018: examples/espacio-de-escritura/ composes the whole extended subset
       'cm-live-list-depth-2',
       'cm-live-footnote-ref',
       'cm-live-apparatus',
+      // Requirement 010: the Diagram closing the example. It sits after the
+      // Footnote definition on purpose — the `bottom` snapshot is taken
+      // once that definition has scrolled into view, so the Diagram is in
+      // the same screenful and cannot be missed by the viewport.
+      'cm-live-diagram',
     ];
     for (const cls of expectedClasses) {
       assert.ok(seenClasses.has(cls), `expected ${cls} to be composed somewhere in the example Chapter — got: ${[...seenClasses].join(', ')}`);

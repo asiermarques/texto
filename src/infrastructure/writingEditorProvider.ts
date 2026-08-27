@@ -502,12 +502,16 @@ export class WritingEditorProvider implements vscode.CustomTextEditorProvider {
     const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'dist', 'webview.js'));
     const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'dist', 'media', 'styles.css'));
     const fontCssUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'dist', 'media', 'fonts.css'));
+    // Requirement 010: advertised, not loaded. Only a Chapter that turns out
+    // to hold a Diagram fetches it (ADR 0004).
+    const mermaidScriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'dist', 'mermaid.js'));
     return getHtmlForWebview(
       webview,
       {
         scriptUri: scriptUri.toString(),
         styleUri: styleUri.toString(),
         fontCssUri: fontCssUri.toString(),
+        mermaidScriptUri: mermaidScriptUri.toString(),
       },
       nonce,
       { theme: preferences.theme, textSize: preferences.textSize, alignment: preferences.alignment }

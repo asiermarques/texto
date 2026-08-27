@@ -12,7 +12,7 @@ import { isLikelyUrl, pasteUrlOverSelection, wrapSelectionAsLink } from '../doma
 import { computeEnterContinuation } from '../domain/listContinuation';
 import { toggleTaskMarkerAt } from '../domain/taskToggle';
 import { frontmatterFold, foldedFrontmatterEnd } from './frontmatterFold';
-import { livePreview } from './livePreviewPlugin';
+import { livePreview, redrawDiagrams } from './livePreviewPlugin';
 import { focusMode } from './focusModePlugin';
 import { noFocusRingTheme } from './noFocusRingTheme';
 
@@ -155,6 +155,24 @@ const clickHandler = EditorView.domEventHandlers({
         view.dispatch({ changes: [change] });
         return true;
       }
+    }
+    // Requirement 010: the way into a composed Diagram with the mouse.
+    // A Diagram is the one composition that replaces its own lines outright,
+    // so there is no text under the pointer for CodeMirror to resolve a
+    // click to — without this, clicking the picture puts the cursor at its
+    // edge, which reads as "outside" and leaves the source unreachable. The
+    // same gap US-008 of 006 had to close for a Code block's hidden fence.
+    const diagram = target?.closest('.cm-live-diagram');
+    if (diagram) {
+      const pos = view.posAtDOM(diagram);
+      event.preventDefault();
+      // One position in, not the block's own start: the start is the fence
+      // line's first character, which `touchesBlock` counts as inside, but
+      // landing there means a Backspace deletes the paragraph above rather
+      // than anything in the block the Author just asked to open.
+      view.dispatch({ selection: { anchor: Math.min(pos + 1, view.state.doc.length) } });
+      view.focus();
+      return true;
     }
     if (!(event.metaKey || event.ctrlKey)) {
       return false;
@@ -405,6 +423,22 @@ window.addEventListener('message', (event: MessageEvent<ExtensionToWebviewMessag
           fontVariantNumeric: cellStyle.fontVariantNumeric,
         };
       });
+      const diagrams = Array.from(root.querySelectorAll('.cm-live-diagram'), (el) => {
+        const rect = el.getBoundingClientRect();
+        const svg = el.querySelector('svg');
+        const svgRect = svg?.getBoundingClientRect();
+        return {
+          fallbackSource: el.querySelector('.cm-live-diagram-source')?.textContent ?? '',
+          drawn: svg !== null,
+          width: svgRect?.width ?? 0,
+          height: svgRect?.height ?? 0,
+          // The nonce attribute reads back as empty from the DOM once the
+          // document has it (browsers hide it on purpose), so the honest
+          // check is the `nonce` property, which keeps the real value.
+          styleHasNonce: (svg?.querySelector('style') as (SVGStyleElement & { nonce?: string }) | null | undefined)?.nonce ? true : false,
+          right: rect.right,
+        };
+      });
       const snapshot: TestFromWebviewMessage = {
         __test: true,
         type: 'snapshotResult',
@@ -441,6 +475,7 @@ window.addEventListener('message', (event: MessageEvent<ExtensionToWebviewMessag
         },
         lineRects,
         tableCells,
+        diagrams,
         contentBox: textColumn,
         scrollerBox: { left: scrollerRect.left, right: scrollerRect.right },
         viewportWidth: window.innerWidth,
@@ -566,6 +601,11 @@ window.addEventListener('message', (event: MessageEvent<ExtensionToWebviewMessag
 
   if (message.type === 'setTheme') {
     document.documentElement.dataset.theme = message.theme;
+    // Requirement 010: every other composition follows the theme through
+    // CSS, which needs nothing dispatched. A Diagram is drawn once with its
+    // palette baked into the SVG, so it is the one thing that has to be
+    // composed again.
+    view.dispatch({ effects: redrawDiagrams.of(undefined) });
     return;
   }
 

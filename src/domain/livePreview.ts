@@ -1,5 +1,6 @@
 import type { SyntaxNode, Tree } from '@lezer/common';
 import { type SelectionRange, touches, touchesBlock } from './selectionOverlap';
+import { isDiagramInfo } from './diagram';
 
 /**
  * What the Live preview should do to a range of the document. Pure
@@ -23,7 +24,15 @@ export type LivePreviewInstruction =
   //
   // `attributes` (US-001 of 009): a Table's Rows are all one width, a value
   // only this analyser can work out — see `columnLayout`.
-  | { readonly kind: 'line'; readonly from: number; readonly to: number; readonly class: string; readonly attributes?: Readonly<Record<string, string>> };
+  | { readonly kind: 'line'; readonly from: number; readonly to: number; readonly class: string; readonly attributes?: Readonly<Record<string, string>> }
+  // A Diagram (requirement 010, ADR 0004): the whole Code block, replaced by
+  // the picture its `source` describes. The one instruction that is not
+  // hide/mark/line over the Author's own characters — a diagram's shape is
+  // not in the text, it is computed from it, so no amount of CSS over those
+  // characters can draw it. `from`/`to` span the fence lines included; the
+  // webview widens them to whole lines before replacing, the same way 'line'
+  // resolves its own line bounds there.
+  | { readonly kind: 'diagram'; readonly from: number; readonly to: number; readonly source: string };
 
 // Every inline construct that composes as "hide two marks, style the content
 // between them" — StrongEmphasis and Emphasis already did; Strikethrough
@@ -174,6 +183,49 @@ export function computeLivePreviewInstructions(tree: Tree, text: string, selecti
       }
       pos = line.to + 1;
     }
+  }
+
+  // Requirement 010. A Diagram is a Code block whose info string is
+  // `mermaid` (`isDiagramInfo`): it composes as the picture its source
+  // describes, and falls back to being an ordinary Code block — the caller
+  // carries on down its own branch — whenever it must not, or cannot, be
+  // one. Returns whether it composed.
+  function composeDiagram(node: SyntaxNode): boolean {
+    const info = childrenOf(node, 'CodeInfo')[0];
+    if (!info || !isDiagramInfo(text.slice(info.from, info.to))) {
+      return false;
+    }
+
+    // A Diagram reveals whole, exactly like a Table and for a stronger
+    // reason: its source is a program, and a program read half-composed is
+    // neither a picture nor something the Author can edit. `touchesBlock`,
+    // so a cursor resting on the closing fence's own end still counts as
+    // inside — that is where the Author lands after typing the last line.
+    if (touchesBlock(selection, { from: node.from, to: node.to })) {
+      return false;
+    }
+
+    // A Diagram replaces whole lines — the picture has no way to share one
+    // with anything else, and the webview's replacement is only legal over
+    // line boundaries. A fence indented into a list item starts mid-line, so
+    // composing it would swallow the item's own marker: it stays an ordinary
+    // Code block instead.
+    if (node.from > 0 && text[node.from - 1] !== '\n') {
+      return false;
+    }
+
+    // An empty fence is the Author mid-keystroke, having just opened the
+    // block and not yet written what goes in it. There is no diagram to
+    // draw, and replacing the fence with nothing would take the block they
+    // are typing into off the screen.
+    const body = childrenOf(node, 'CodeText')[0];
+    const source = body ? text.slice(body.from, body.to) : '';
+    if (source.trim() === '') {
+      return false;
+    }
+
+    instructions.push({ kind: 'diagram', from: node.from, to: node.to, source });
+    return true;
   }
 
   // US-001/US-002 of 009. The grid is CSS over the Author's own characters:
@@ -582,6 +634,9 @@ export function computeLivePreviewInstructions(tree: Tree, text: string, selecti
     }
 
     if (name === 'FencedCode') {
+      if (composeDiagram(node)) {
+        return;
+      }
       composeCodeBlockLines(node);
       const [openMark, closeMark] = childrenOf(node, 'CodeMark');
       if (openMark && !isActiveLine(openMark.from)) {

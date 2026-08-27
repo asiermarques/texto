@@ -94,14 +94,34 @@ async function main() {
     logLevel: 'info',
   });
 
+  // Requirement 010 / ADR 0004: the Diagram renderer, kept out of
+  // webview.js on purpose. beautiful-mermaid plus the ELK layout solver it
+  // depends on weigh ~1.5MB minified against the Writing surface's own
+  // ~326KB, and ELK — 94% of that — is a static import no bundler can
+  // shake out. A third bundle means only a Chapter that actually contains a
+  // Diagram fetches it, and it does so after first paint:
+  // src/webview/mermaidRenderer.ts injects the <script> on demand.
+  const mermaidCtx = await esbuild.context({
+    entryPoints: ['src/webview/mermaidBundle.ts'],
+    bundle: true,
+    outfile: 'dist/mermaid.js',
+    platform: 'browser',
+    target: 'es2020',
+    format: 'iife',
+    sourcemap: watch,
+    minify: !watch,
+    logLevel: 'info',
+  });
+
   if (watch) {
-    await Promise.all([extensionCtx.watch(), webviewCtx.watch()]);
+    await Promise.all([extensionCtx.watch(), webviewCtx.watch(), mermaidCtx.watch()]);
     copyMediaAssets();
   } else {
-    await Promise.all([extensionCtx.rebuild(), webviewCtx.rebuild()]);
+    await Promise.all([extensionCtx.rebuild(), webviewCtx.rebuild(), mermaidCtx.rebuild()]);
     copyMediaAssets();
     await extensionCtx.dispose();
     await webviewCtx.dispose();
+    await mermaidCtx.dispose();
   }
 }
 

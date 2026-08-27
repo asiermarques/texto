@@ -472,20 +472,29 @@ always stays exactly what you typed.
 | Link (inline, reference, autolink, bare URL) | `[text](url)`, `[text][ref]`, `<url>`, a bare `https://…` | Underlined text, target hidden (hover or `Cmd`/`Ctrl`+click to see/follow it) |
 | Image | `![alt](url)` | Its alternative text, marked distinctly from a Link — never the picture itself |
 | Code block (fenced or indented) | ` ```lang…``` ` or a 4-space indent | Preformatted, monospaced, never justified |
+| Diagram | ` ```mermaid…``` ` | The picture the source describes — see below |
+| Table | `\| Name \| Role \|` over `\| --- \| --- \|` | An aligned grid, pipes hidden, ruled under the header |
 | Footnote | `text[^1]` … `[^1]: note` | The call as a superscript, the note apart from the prose |
 | Reference definition | `[ref]: url` | A discreet line, apart from the prose |
+| Frontmatter | `---`-fenced YAML or `+++`-fenced TOML, at the very top | Folded out of sight; the Frontmatter button in the toolbar brings it back |
+
+**Diagrams.** A code block fenced ` ```mermaid ` is drawn as the picture its
+source describes — flowcharts, sequence, class, state and ER diagrams. Put
+the cursor anywhere inside it and the whole block turns back into the source
+to edit; move the cursor out, or click the picture to get in. The file on
+disk is only ever the mermaid source you wrote: nothing is inserted, and the
+picture is never written back. It's the one thing in this editor that is
+drawn rather than styled, so it also carries its own palette rather than the
+editor theme's, and the renderer it needs is only downloaded by a chapter
+that actually contains a diagram. A diagram that can't be drawn — because
+you're halfway through writing it — simply shows its source.
 
 **Not composed, shown and kept exactly as written:**
 
-- **Tables.** Aligning columns is the one construct that can't be expressed
-  as a decoration over the Author's own characters.
 - **HTML**, inline or block.
-- **Front matter** (a leading `---`-delimited YAML block). It renders
-  *worse* now that a bare `---` composes (see below) — `title: …` over `---`
-  reads as a heading. Known, not a bug; there is no supported way to write
-  front matter that looks right in the Writing editor today.
 - **Syntax colouring inside a Code block.** One colour, preformatted — this
-  editor quotes code, it doesn't highlight it.
+  editor quotes code, it doesn't highlight it. A **Diagram** is the one
+  exception, and it isn't colouring: it's a different picture entirely.
 
 **The `---` rule.** Directly under a line of prose, with no blank line
 between them, `---` is a setext heading (CommonMark's own reading — the line

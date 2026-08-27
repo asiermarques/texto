@@ -8,6 +8,14 @@ export interface HtmlAssetUris {
   readonly scriptUri: string;
   readonly styleUri: string;
   readonly fontCssUri: string;
+  /**
+   * Requirement 010: where the **Diagram** renderer lives. Advertised in a
+   * meta tag rather than loaded by a `<script>` of its own — the webview
+   * injects it, and only once a **Chapter** turns out to contain a
+   * **Diagram**, so the ~1.5MB bundle is never on the path to first paint
+   * (ADR 0004).
+   */
+  readonly mermaidScriptUri: string;
 }
 
 /** The subset of `WritingEditorPreferences` that has to be visible before first paint. */
@@ -36,6 +44,7 @@ export function getHtmlForWebview(webview: WebviewLike, assets: HtmlAssetUris, n
 <head>
   <meta charset="UTF-8" />
   <meta property="csp-nonce" content="${nonce}" />
+  <meta property="mermaid-script" content="${assets.mermaidScriptUri}" />
   <meta
     http-equiv="Content-Security-Policy"
     content="default-src 'none'; img-src ${webview.cspSource}; font-src ${webview.cspSource}; style-src ${webview.cspSource} 'nonce-${nonce}'; script-src 'nonce-${nonce}';"

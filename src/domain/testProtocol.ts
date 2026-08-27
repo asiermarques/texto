@@ -133,6 +133,25 @@ export interface EditorSnapshot {
     readonly fontVariantNumeric: string;
   }[];
   /**
+   * Requirement 010: one entry per composed **Diagram**. The plate is the
+   * one composition with no text to read back — `renderedText` sees nothing
+   * where it stands — so what it is showing has to be reported directly:
+   * whether the picture was drawn at all, how big it came out, and whether
+   * its own `<style>` carries the nonce the Content Security Policy demands.
+   * Without that last one a **Diagram** still draws, as unstyled shapes, and
+   * every assertion about it would pass.
+   */
+  readonly diagrams: readonly {
+    /** The source, when the plate is showing it as a fallback instead of a picture. */
+    readonly fallbackSource: string;
+    readonly drawn: boolean;
+    readonly width: number;
+    readonly height: number;
+    readonly styleHasNonce: boolean;
+    /** The plate's own box against the measure — a wide Diagram is scaled, never bled. */
+    readonly right: number;
+  }[];
+  /**
    * The text column every visual line above is measured against (US-019):
    * contentDOM's box minus its own horizontal padding, which is where the
    * measure lives. Measured, not read off a CSS declaration, so it stays

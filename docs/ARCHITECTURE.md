@@ -256,13 +256,17 @@ installer.
     **Scene break** jumping between `⁂` and `---`). The marker-substitute
     class is what stops the composed glyph and the real marker from showing
     at once once the marker is revealed.
-- **Every composition is a decoration plus CSS — never a widget (requirement
-  006, held under pressure by 009).** `Decoration.replace`/`Decoration.mark`/`Decoration.line` over the
+- **Every composition is a decoration plus CSS — never a widget, with one
+  named exception (requirement 006, held under pressure by 009, spent by
+  010).** `Decoration.replace`/`Decoration.mark`/`Decoration.line` over the
   Author's own characters, styled by `styles.css`; nothing in the Composed
   subset is an inserted `WidgetType` (a rendered image, a real `<input
-  type="checkbox">`). A **Table**'s grid is no longer an example of what this
-  rules out: requirement 009 authorised a widget for it (BR-002) and it turned
-  out not to be needed — see the Table bullet below and
+  type="checkbox">`) — except the **Diagram**, which is one and could never
+  be anything else (see the Diagram bullet below and
+  `docs/adr/0004-a-diagram-is-the-one-widget.md`). A **Table**'s grid is no
+  longer an example of what this rules out: requirement 009 authorised a
+  widget for it (BR-002) and it turned out not to be needed — see the Table
+  bullet below and
   `docs/adr/0003-tables-compose-without-a-widget.md`. A Task's box (DEC-002) is the sharpest
   example of why: `[ ]`/`[x]` stay real DOM text, visually replaced by a CSS
   `::before` glyph rather than removed — which is what lets
@@ -296,6 +300,41 @@ installer.
   A **Table** reveals whole, not by line like every other block construct:
   a **Row**'s raw markdown is only readable next to the other **Rows**'.
   Rationale and the discarded options: `docs/adr/0003-tables-compose-without-a-widget.md`.
+- **A Diagram is the one widget, and it is loaded separately (requirement
+  010).** A **Code block** fenced ```` ```mermaid ```` composes as the picture
+  its **Diagram source** describes. Unlike a **Table**'s grid, this cannot be
+  CSS over the Author's characters: the shape is *computed from* the source,
+  not written in it, so there is nothing on screen for a decoration to style
+  into a diagram. `LivePreviewInstruction` therefore gains a `diagram` kind
+  and `src/webview/diagramWidget.ts` a `WidgetType` — the exception the
+  bullet above names, and the whole of it.
+  Two consequences the rest of the design falls out of. First, a decoration
+  that replaces a line break may only come from a `StateField`, never from a
+  `ViewPlugin`, so `src/webview/livePreviewPlugin.ts` is now a field holding
+  the instruction list plus a plugin reading it — one traversal, two
+  providers, the same shape ADR 0001 gave the parse. Second, the renderer
+  (`beautiful-mermaid` plus the ELK layout solver, ~1.5MB minified against
+  the Writing surface's own ~330KB, 94% of it a static import no bundler can
+  shake out) is a **third esbuild bundle**, `dist/mermaid.js`, advertised to
+  the webview in a `<meta>` tag and fetched by
+  `src/webview/mermaidRenderer.ts` only once a **Chapter** turns out to
+  contain a **Diagram**. `mermaidBundleBytes` is its own **Operation count**
+  metric precisely so the two numbers can move independently: a rise in
+  `webviewBundleBytes` matching it would mean a **Chapter** with no
+  **Diagram** had started paying for one.
+  Two details that are invisible until they are wrong: the SVG carries its
+  whole palette in an inline `<style>`, which the webview's Content Security
+  Policy refuses without the nonce (the diagram then draws as unstyled
+  shapes, and every assertion that merely counted elements still passes —
+  hence `styleHasNonce` in the test protocol); and the SVG opens with a
+  Google Fonts `@import` that is stripped before insertion, so no **Chapter**
+  reaches for the network by being opened. A **Diagram** carries its palette
+  baked in rather than reading CSS, so it is the one composition that has to
+  be rebuilt on a theme change — the `redrawDiagrams` effect. It is
+  deliberately *not* in `atomicRanges`: every other replacement there exists
+  to keep the cursor out, and a **Diagram** must let it in, because walking
+  into it is how the source is revealed to edit.
+  Rationale, and why the cost was accepted: `docs/adr/0004-a-diagram-is-the-one-widget.md`.
 - **One parser configuration, shared by every traversal (requirement
   006, reconfigured by requirement 008).** `src/domain/markdownParser.ts`
   exports the single `MarkdownParser` instance that `livePreview.ts`,

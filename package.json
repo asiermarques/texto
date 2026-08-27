@@ -182,6 +182,7 @@
     "@codemirror/state": "^6.4.0",
     "@codemirror/view": "^6.28.0",
     "@fontsource-variable/literata": "^5.1.0",
-    "@lezer/markdown": "^1.7.2"
+    "@lezer/markdown": "^1.7.2",
+    "beautiful-mermaid": "^1.1.3"
   }
 }

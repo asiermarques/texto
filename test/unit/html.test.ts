@@ -6,6 +6,7 @@ const assets = {
   scriptUri: 'vscode-webview://abc123/dist/webview.js',
   styleUri: 'vscode-webview://abc123/dist/media/styles.css',
   fontCssUri: 'vscode-webview://abc123/dist/media/fonts.css',
+  mermaidScriptUri: 'vscode-webview://abc123/dist/mermaid.js',
 };
 const preferences = { theme: 'light' as const, textSize: 18, alignment: 'left' as const };
 
@@ -23,6 +24,17 @@ describe('getHtmlForWebview', () => {
     const html = getHtmlForWebview(webview, assets, 'the-nonce', preferences);
 
     expect(html).toContain(`<script nonce="the-nonce" src="${assets.scriptUri}">`);
+  });
+
+  // Requirement 010 / ADR 0004: the point of the meta tag is that it is NOT
+  // a script tag. A Chapter with no Diagram in it must never fetch the
+  // renderer, so the URI is advertised for src/webview/mermaidRenderer.ts to
+  // inject on demand — the assertion that matters is the negative one.
+  it('advertises the Diagram renderer without loading it', () => {
+    const html = getHtmlForWebview(webview, assets, 'the-nonce', preferences);
+
+    expect(html).toContain(`<meta property="mermaid-script" content="${assets.mermaidScriptUri}" />`);
+    expect(html).not.toContain(`<script nonce="the-nonce" src="${assets.mermaidScriptUri}">`);
   });
 
   it('loads the stylesheet and font stylesheet through webview URIs', () => {

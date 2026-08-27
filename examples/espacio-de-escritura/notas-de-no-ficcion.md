@@ -28,3 +28,17 @@ Todo esto se apoya en una extensión al analizador que no existía antes de
 este requisito[^footnote-parser].
 
 [^footnote-parser]: Ver `src/domain/footnotes.ts` — la única dependencia nueva del requisito 006 (BR-003).
+
+## Cómo llega un cambio al capítulo
+
+```mermaid
+graph TD
+  A[Tecla] --> B[Tree update]
+  B --> C[Live preview]
+  C --> D{¿Cursor dentro?}
+  D -->|Sí| E[Markdown a la vista]
+  D -->|No| F[Compuesto]
+```
+
+El bloque de arriba es un diagrama: se escribe como código y se lee como
+dibujo, y vuelve a ser código en cuanto el cursor entra en él.

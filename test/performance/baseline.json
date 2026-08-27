@@ -5,6 +5,7 @@
   "treeUpdatesPerCursorMove": 0,
   "livePreviewInstructions": 1913,
   "dimRanges": 433,
-  "extensionBundleBytes": 80319,
-  "webviewBundleBytes": 326202
+  "extensionBundleBytes": 80498,
+  "webviewBundleBytes": 329822,
+  "mermaidBundleBytes": 1558788
 }

@@ -485,6 +485,68 @@ body {
   -webkit-hyphens: none;
 }
 
+/*
+ * Requirement 010: a composed Diagram — a plate set into the prose, in the
+ * renderer's own palette rather than the Writing surface's, the way a plate
+ * in a printed book is not set in the book's ink.
+ *
+ * The plate is the SVG itself, not this element. beautiful-mermaid paints
+ * the theme's ground onto the <svg> and insets the drawing from its edges
+ * (its own `padding` option, 40px by default), so a ground and a padding
+ * here too would frame a picture that is already framed — a border around a
+ * border, in two different colours. This element carries nothing but the air
+ * around the plate and the centring; everything inside it belongs to
+ * whichever child is currently in it.
+ *
+ * `text-align: center` rather than following the Chapter's own alignment:
+ * the plate is an object, not prose, so justification and right-alignment
+ * have nothing to act on.
+ */
+#editor-root .cm-live-diagram {
+  display: block;
+  margin: 1.4em 0;
+  text-align: center;
+  /* The picture is the Author's own material but not their own text: a drag
+     across it selects the source underneath, which is neither useful nor
+     what the gesture looks like it should do. */
+  user-select: none;
+}
+
+/*
+ * `max-width: 100%` with `height: auto` is what honours the measure:
+ * beautiful-mermaid stamps the picture's natural width and height on the
+ * <svg> itself, and a diagram wider than the column would otherwise bleed
+ * into the margins — the same answer OQ-001 of 009 gave a wide Table, scaled
+ * instead of wrapped because a picture cannot reflow.
+ *
+ * The radius is on the SVG because the ground it rounds is the SVG's own.
+ */
+#editor-root .cm-live-diagram svg {
+  display: inline-block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+/*
+ * The source, shown when the renderer has not arrived yet or could not draw
+ * this diagram. Set exactly as the Code block it is written as — the Author
+ * sees what they wrote, which is the one thing they can act on — which is
+ * also why the ground and the inset live here rather than on the plate
+ * above: this is the child that has no plate of its own to sit on.
+ */
+#editor-root .cm-live-diagram-source {
+  margin: 0;
+  padding: 1.1em;
+  border-radius: 4px;
+  background: var(--editor-code-background);
+  font-family: 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  font-size: 0.88em;
+  white-space: pre-wrap;
+  text-align: left;
+  opacity: 0.75;
+}
+
 /* US-012: the call reads as a raised, smaller numeral — the usual typographic convention for a footnote, without inventing a new one. */
 #editor-root .cm-live-footnote-ref {
   vertical-align: super;

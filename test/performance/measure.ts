@@ -99,5 +99,11 @@ export function measureOperationCounts(): Record<string, number> {
     dimRanges: computeDimmedRanges(tree, fixture, cursor).length,
     extensionBundleBytes: statSync(join(distDir, 'extension.js')).size,
     webviewBundleBytes: statSync(join(distDir, 'webview.js')).size,
+    // Requirement 010 / ADR 0004: the Diagram renderer, counted separately
+    // because it is loaded separately. Keeping it out of
+    // `webviewBundleBytes` is the whole point of the split — a regression
+    // here would be a Chapter without a Diagram paying for one, and the
+    // only way to see that is for the two numbers to move independently.
+    mermaidBundleBytes: statSync(join(distDir, 'mermaid.js')).size,
   };
 }
