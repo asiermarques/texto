@@ -593,10 +593,24 @@ export function computeLivePreviewInstructions(tree: Tree, text: string, selecti
       // Composition (size, weight) is not the cursor's business — DEC-003:
       // it stays applied whether or not the marker is currently hidden.
       instructions.push({ kind: 'line', from: node.from, to: node.to, class: `cm-live-heading-${level}` });
-      if (!isActiveLine(node.from)) {
-        const mark = childrenOf(node, 'HeaderMark')[0];
-        if (mark) {
-          hideMarkAndSpace(mark, node.to);
+      const headerMark = childrenOf(node, 'HeaderMark')[0];
+      if (headerMark) {
+        if (isActiveLine(node.from)) {
+          // Revealed, and marked so it can be revealed WITHOUT moving the
+          // title: composed, the "##" costs no width, so letting it back
+          // into the flow pushed the whole line ~2 characters to the right
+          // the moment the cursor arrived — the Author aimed at a letter,
+          // the letter moved, and the caret read as misplaced. The same
+          // "entering a line must not recompose it" rule DEC-003 states for
+          // a heading's size, applied to its horizontal position; the same
+          // thing `focusMode` means by never shifting text; and the same
+          // answer the list bullet already gives with its hanging indent.
+          // The class hangs it in the margin (styles.css) — which only CSS
+          // can do, so this stays a plain `mark` and the analyser keeps
+          // knowing nothing about layout.
+          instructions.push({ kind: 'mark', from: headerMark.from, to: skipSpaces(headerMark.to, node.to), class: 'cm-live-heading-marker' });
+        } else {
+          hideMarkAndSpace(headerMark, node.to);
         }
       }
       visit(node);

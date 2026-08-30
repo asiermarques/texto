@@ -10,7 +10,7 @@
   "editor.glyphMargin": false,
 
   "texto.theme": "light",
-  "texto.focusMode": true,
+  "texto.focusMode": false,
   "texto.textSize": 18,
   "texto.alignment": "left"
 }

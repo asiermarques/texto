@@ -39,6 +39,48 @@ suite('US-007: headings, blockquote and lists composed as prose', () => {
     assert.ok(snapshot.renderedText.includes('## Un título'));
   });
 
+  test('revealing the hash does not move the title — the marker hangs in the margin', async () => {
+    fileUri = await createScratchFile('## Un título\n\nUn párrafo cualquiera.');
+    const panel = await openInWritingEditor(fileUri);
+
+    // Composed, with the cursor well away from the heading's line.
+    await setCursor(panel, 20);
+    const composed = await waitFor(async () => {
+      const snapshot = await requestSnapshot(panel);
+      return snapshot.liveClasses.includes('cm-live-heading-2') && !snapshot.renderedText.includes('##') ? snapshot : undefined;
+    }, 'the heading to be composed');
+    const composedTitle = composed.lineRects.find((line) => line.text.includes('Un título'));
+    assert.ok(composedTitle && composedTitle.visualLines.length > 0, 'the title should be on the Writing surface');
+
+    await setCursor(panel, 5);
+    const revealed = await waitFor(async () => {
+      const snapshot = await requestSnapshot(panel);
+      return snapshot.renderedText.includes('## Un título') ? snapshot : undefined;
+    }, 'the hash to reappear');
+    const revealedTitle = revealed.lineRects.find((line) => line.text.includes('Un título'));
+    assert.ok(revealedTitle && revealedTitle.visualLines.length > 0, 'the title should still be on the Writing surface');
+
+    // Its right edge, not its left: the hash hangs to the LEFT of the title,
+    // so it is the left edge of the line's boxes once revealed, and the
+    // title's own place is what the Author sees move. Let back into the
+    // flow the hash pushed the whole line right by its own width — about
+    // two characters — so the letter under the pointer was no longer the
+    // letter clicked.
+    assert.ok(
+      Math.abs(revealedTitle!.visualLines[0].right - composedTitle!.visualLines[0].right) < 1,
+      `the title should not move when the hash is revealed: ${composedTitle!.visualLines[0].right} -> ${revealedTitle!.visualLines[0].right}`
+    );
+
+    // And it really does hang, rather than being hidden a second way: the
+    // line's boxes now reach further left than the title alone did, which is
+    // the hash sitting in the margin where the Author can still see and edit
+    // it.
+    assert.ok(
+      revealedTitle!.visualLines[0].left < composedTitle!.visualLines[0].left - 1,
+      `the hash should hang to the left of the title: line starts at ${revealedTitle!.visualLines[0].left}, title at ${composedTitle!.visualLines[0].left}`
+    );
+  });
+
   test('a blockquote is composed distinctly from a normal paragraph, with the marker hidden', async () => {
     fileUri = await createScratchFile('> Una cita memorable.\n\nUn párrafo normal.');
     const panel = await openInWritingEditor(fileUri);

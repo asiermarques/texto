@@ -327,6 +327,41 @@ body {
   padding-bottom: 0.75rem;
 }
 
+/*
+ * The revealed "##", hung in the margin instead of let back into the line.
+ *
+ * Composed, the marker is replaced outright and costs no width, so revealing
+ * it in the flow moved the title right by its own width the instant the
+ * cursor reached the line — the Author aimed at a letter and the letter
+ * stepped aside. Focus mode already refuses to shift text for the same
+ * reason, DEC-003 refuses to recompose a line the cursor enters, and the
+ * list bullet already reserves its marker's place with a hanging indent.
+ * This is that rule for the heading.
+ *
+ * `position: absolute` with no offsets keeps the box at its static position
+ * and takes it out of the flow, so the title does not move; the transform
+ * then slides it left by its own width, which is why nothing here has to
+ * know how wide a "#" is at each of the six sizes. A percentage transform
+ * resolves against the element's own box, so an out-of-flow box — which
+ * shrink-wraps its text — is the one shape where `-100%` means exactly
+ * "my own width", and an in-flow `width: 0` box would not work.
+ *
+ * On a window narrow enough for the measure to fall back to its 1.5rem
+ * gutter a deep marker ("###### ") is wider than the room left for it and
+ * the scroller clips it. That is the right failure: overflow to the LEFT is
+ * not scrollable in a left-to-right document, so it costs no scrollbar, and
+ * a transient editing affordance is the thing to sacrifice at that width.
+ */
+#editor-root .cm-live-heading-marker {
+  position: absolute;
+  transform: translateX(-100%);
+  /* The marker travels with its trailing space (`skipSpaces` in
+     livePreview.ts), and out of the flow that space would otherwise be
+     dropped — leaving the "#"s flush against the title they are hung away
+     from. */
+  white-space: pre;
+}
+
 #editor-root .cm-live-heading-1 {
   font-size: 1.6em;
 }
@@ -501,10 +536,23 @@ body {
  * `text-align: center` rather than following the Chapter's own alignment:
  * the plate is an object, not prose, so justification and right-alignment
  * have nothing to act on.
+ *
+ * Padding and not margin for the air, the same rule the headings and the
+ * Scene break already follow and for the same reason, which bites harder
+ * here: this element IS the widget of a block replacement, so CodeMirror
+ * measures the whole Diagram from its rectangle (`getBoundingClientRect`,
+ * which excludes the margin) and stores that in its height map. With a
+ * margin, every line BELOW the Diagram really sits 2.8em lower than
+ * CodeMirror believes, and `posAtCoords` — which picks the line off the
+ * height map before hit-testing inside it — hands back a line further down
+ * the Chapter than the one under the pointer. A click in a Paragraph then
+ * lands on the blank line after it, at column 0, which is where every
+ * position on an empty line is. Raw markdown view never showed it because
+ * it tears the Live preview down, Diagram and margin with it.
  */
 #editor-root .cm-live-diagram {
   display: block;
-  margin: 1.4em 0;
+  padding: 1.4em 0;
   text-align: center;
   /* The picture is the Author's own material but not their own text: a drag
      across it selects the source underneath, which is neither useful nor

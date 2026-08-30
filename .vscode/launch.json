@@ -5,7 +5,15 @@
       "name": "Run Extension",
       "type": "extensionHost",
       "request": "launch",
-      "args": ["--extensionDevelopmentPath=${workspaceFolder}"],
+      // The example Writing space, not an empty window: without a folder the
+      // second window opens on VSCode's Welcome page with nothing to write
+      // in, and this one already carries the `.vscode/settings.json` that
+      // associates `*.md` with the Writing editor — so a `.md` in it opens
+      // composed on a double click, the way an Author's own Writing space
+      // does. `--folder-uri` rather than a bare path: only that form actually
+      // opens the directory as a workspace folder (the same reason
+      // `test/integration/runTest.ts` uses it).
+      "args": ["--extensionDevelopmentPath=${workspaceFolder}", "--folder-uri=file://${workspaceFolder}/examples/espacio-de-escritura"],
       "outFiles": ["${workspaceFolder}/dist/**/*.js"],
       "preLaunchTask": "npm: build"
     }

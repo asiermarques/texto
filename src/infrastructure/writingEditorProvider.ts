@@ -46,6 +46,12 @@ export class WritingEditorProvider implements vscode.CustomTextEditorProvider {
   private static readonly panels = new Map<string, vscode.WebviewPanel>();
   private static readonly documents = new Map<string, vscode.TextDocument>();
 
+  // The tail of the edits in flight for each Chapter — see `applyChanges`,
+  // which is where the reason lives. Keyed by URI rather than by panel: two
+  // panels on the same Chapter write to the same `TextDocument`, so they
+  // have to queue behind each other, not each behind themselves.
+  private static readonly editQueues = new Map<string, Promise<void>>();
+
   // US-020 (RISK-007): `onDidChangeActiveTextEditor` never fires for a
   // CustomTextEditor, so the status bar's visibility is governed from here —
   // each panel's own `onDidChangeViewState` — rather than from the usual
@@ -475,6 +481,7 @@ export class WritingEditorProvider implements vscode.CustomTextEditorProvider {
       // US-002 (008): a pending debounced recompute must not fire against a
       // closed panel's disposed status bar item once this Chapter is gone.
       WritingEditorProvider.cancelPendingWordCountRecompute(document.uri.toString());
+      WritingEditorProvider.releaseEditQueue(document.uri.toString());
       WritingEditorProvider.wordCountTotals.delete(document.uri.toString());
       WritingEditorProvider.wordCountRecomputeCounts.delete(document.uri.toString());
       if (WritingEditorProvider.lastActiveUri === document.uri.toString()) {
@@ -487,14 +494,81 @@ export class WritingEditorProvider implements vscode.CustomTextEditorProvider {
     });
   }
 
-  private async applyChanges(
+  /**
+   * Forgets a closed Chapter's edit queue, but only once it has drained and
+   * only if nothing has queued behind it since. Dropping the entry while an
+   * edit is still in flight would let the next one — from another panel on
+   * the same Chapter, or from the same Chapter reopened — resolve its
+   * offsets against a document that edit has not landed in yet, which is the
+   * very race `applyChanges` exists to close.
+   */
+  private static releaseEditQueue(key: string): void {
+    const queue = WritingEditorProvider.editQueues.get(key);
+    if (!queue) {
+      return;
+    }
+    void queue.then(() => {
+      if (WritingEditorProvider.editQueues.get(key) === queue) {
+        WritingEditorProvider.editQueues.delete(key);
+      }
+    });
+  }
+
+  /**
+   * Queues one batch of the Author's changes behind every batch already in
+   * flight for the same Chapter.
+   *
+   * The serialisation is the whole point, and it is what fixes the bug that
+   * ate characters out of a Chapter typed at speed. A `TextChange`'s offsets
+   * are into the document as the webview knows it, which is the document
+   * VSCode holds plus every edit already sent. `applyEdit` is asynchronous,
+   * so two batches started concurrently both resolved their `Range`s —
+   * `document.positionAt`, read synchronously — against a document the first
+   * one had not landed in yet. VSCode then refused the second ("IGNORING
+   * workspace edit: … has changed in the meantime") and that keystroke was
+   * gone, or worse, it landed at an offset that no longer meant what the
+   * webview meant by it and the two documents silently drifted apart — after
+   * which every later edit was applied in the wrong place.
+   *
+   * Awaiting each `applyEdit` before resolving the next batch's offsets is
+   * the fix: `applyEdit` resolves only once the edit is in the document, so
+   * the next batch measures against exactly the document its offsets were
+   * written for. It also gives `markOwnEdit` one distinct version per edit,
+   * which the concurrent path could not (both batches predicted the same
+   * `document.version + 1`).
+   */
+  private applyChanges(
     document: vscode.TextDocument,
     changes: readonly TextChange[],
     tracker: EditOriginTracker
   ): Promise<void> {
     if (changes.length === 0) {
-      return;
+      return Promise.resolve();
     }
+    const key = document.uri.toString();
+    const previous = WritingEditorProvider.editQueues.get(key) ?? Promise.resolve();
+    // Both arms run this batch: a predecessor that threw must not strand
+    // every edit behind it, which would lose the rest of the Chapter rather
+    // than one keystroke.
+    const applied = previous.then(
+      () => this.applyChangeBatch(document, changes, tracker),
+      () => this.applyChangeBatch(document, changes, tracker)
+    );
+    // What the next batch waits on never rejects, so the queue cannot become
+    // an unhandled rejection and cannot break the chain.
+    const settled = applied.then(
+      () => undefined,
+      () => undefined
+    );
+    WritingEditorProvider.editQueues.set(key, settled);
+    return settled;
+  }
+
+  private async applyChangeBatch(
+    document: vscode.TextDocument,
+    changes: readonly TextChange[],
+    tracker: EditOriginTracker
+  ): Promise<void> {
     const edit = new vscode.WorkspaceEdit();
     for (const change of changes) {
       const range = new vscode.Range(document.positionAt(change.from), document.positionAt(change.to));

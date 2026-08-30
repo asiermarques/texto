@@ -163,6 +163,33 @@ export async function focusEditor(panel: vscode.WebviewPanel): Promise<void> {
   await panel.webview.postMessage(request);
 }
 
+/**
+ * Whether VSCode's own `undo`/`redo` commands can run at all right now.
+ *
+ * They are `MultiCommand`s: they reach a Chapter only through whichever
+ * editor VSCode currently considers focused, and for a **Writing editor**
+ * that means the webview really holding focus — which needs the VSCode
+ * window to be the frontmost window of the whole machine. `hasFocus` is
+ * CodeMirror's own `view.hasFocus`, which ANDs the DOM fact with
+ * `document.hasFocus()`, so it is exactly that question. (`editorHasDomFocus`
+ * is not: the content element stays `document.activeElement` across a window
+ * blur, which is why the focus-ring test asserts on that one instead.)
+ *
+ * Under CI's single-window display this is always true. On a developer's
+ * machine it is false whenever the suite runs behind another application,
+ * and then `executeCommand('undo')` silently does nothing — a timeout that
+ * says "undo is broken" when all it means is "you clicked somewhere else".
+ * Neither revealing the panel, focusing the editor group, opening a plain
+ * text editor on the same Chapter, nor `default:undo` routes around it.
+ *
+ * So the tests that need those commands assert everything they can without
+ * them first, and use this to decide whether the round trip through VSCode's
+ * undo stack can be exercised on top.
+ */
+export async function undoCommandsCanRun(panel: vscode.WebviewPanel): Promise<boolean> {
+  return (await requestSnapshot(panel)).hasFocus;
+}
+
 /** US-018: scrolls the end of the document into view, so a snapshot can see a long Chapter's whole composed state. */
 export async function scrollToEnd(panel: vscode.WebviewPanel): Promise<void> {
   const request: TestToWebviewMessage = { __test: true, type: 'scrollToEnd' };

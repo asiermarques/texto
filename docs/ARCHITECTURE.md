@@ -260,6 +260,18 @@ installer.
     **Scene break** jumping between `⁂` and `---`). The marker-substitute
     class is what stops the composed glyph and the real marker from showing
     at once once the marker is revealed.
+  - **Revealing a marker must not move the prose either.** DEC-003 stops the
+    line from *recomposing* when the cursor enters it; the marker coming back
+    still moved it. A heading's hidden `##` costs no width, so letting it back
+    into the flow pushed the whole title right by about two characters the
+    moment the caret arrived — the Author aimed at a letter and the letter
+    stepped aside. An **ATX heading**'s revealed marker therefore carries a
+    `cm-live-heading-marker` mark that hangs it in the margin
+    (`position: absolute` plus a `-100%` transform, so nothing has to know how
+    wide a `#` is at each of the six sizes), which is the same promise Focus
+    mode makes by dimming with opacity alone and the same one the list bullet
+    makes with its hanging indent. The blockquote's `>` still shifts its line
+    and is the remaining case.
 - **Every composition is a decoration plus CSS — never a widget, with one
   named exception (requirement 006, held under pressure by 009, spent by
   010).** `Decoration.replace`/`Decoration.mark`/`Decoration.line` over the
@@ -643,10 +655,21 @@ installer.
 
 ## Technical risks
 
-1. **The webview ↔ `TextDocument` bridge.** Applying an edit changes the
-   document, which fires a change event, which is forwarded to the webview,
-   which emits again. Own changes must be told apart from external ones from day
-   one (`EditOriginTracker`).
+1. **The webview ↔ `TextDocument` bridge.** Two hazards, both of them silent.
+   *Echo*: applying an edit changes the document, which fires a change event,
+   which is forwarded to the webview, which emits again. Own changes must be
+   told apart from external ones from day one (`EditOriginTracker`).
+   *Ordering*: an `edit` message carries offsets into the document as the
+   webview knows it, and `applyEdit` is asynchronous, so edits have to be
+   applied one at a time — `applyChanges` queues them per URI. Applied
+   concurrently they each resolve their offsets against a document the
+   previous one has not landed in yet: VSCode refuses the later edit and the
+   keystroke is gone, or it lands somewhere else and the two documents drift
+   apart, after which every subsequent edit is applied in the wrong place.
+   This one really did corrupt a Chapter, which is why the guard is a test
+   that asserts the document's exact text after a burst
+   (`test/integration/editBridge.test.ts`) and not a word count: the damage
+   is invisible to any assertion that only counts.
 2. **Cursor feel.** CodeMirror 6 is excellent, but the bar is iA Writer. Validate
    by writing for real before anything else (RISK-002).
 3. **Search inside the webview.** VSCode's own find does not reach webview

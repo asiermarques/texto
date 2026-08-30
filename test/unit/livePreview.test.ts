@@ -101,7 +101,27 @@ describe('computeLivePreviewInstructions — US-007: headings', () => {
     const text = '## Un título';
     const instructions = computeLivePreviewInstructions(text, cursorAt(8));
 
-    expect(instructions).toEqual([{ kind: 'line', from: 0, to: 12, class: 'cm-live-heading-2' }]);
+    expect(instructions).toEqual([
+      { kind: 'line', from: 0, to: 12, class: 'cm-live-heading-2' },
+      // Revealed as a marked span rather than as nothing at all: the class
+      // is what hangs it in the margin (styles.css) so that revealing it
+      // does not move the title out from under the Author's pointer. The
+      // span covers the trailing space too — that space is part of what was
+      // hidden, so it is part of what has to hang.
+      { kind: 'mark', from: 0, to: 3, class: 'cm-live-heading-marker' },
+    ]);
+  });
+
+  it('hangs the marker whatever its level, so a title never moves when the cursor reaches it', () => {
+    for (const [text, markerEnd] of [
+      ['# Uno', 2],
+      ['###### Seis', 7],
+    ] as const) {
+      const instructions = computeLivePreviewInstructions(text, cursorAt(text.length));
+
+      expect(instructions).toContainEqual({ kind: 'mark', from: 0, to: markerEnd, class: 'cm-live-heading-marker' });
+      expect(instructions.filter((instruction) => instruction.kind === 'hide')).toEqual([]);
+    }
   });
 });
 

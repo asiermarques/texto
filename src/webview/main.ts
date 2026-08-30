@@ -38,11 +38,16 @@ let applyingExternalChange = false;
 const updateListener = EditorView.updateListener.of((update) => {
   if (update.docChanged && !applyingExternalChange) {
     const changes: TextChange[] = [];
-    for (const transaction of update.transactions) {
-      transaction.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
-        changes.push({ from: fromA, to: toA, insert: inserted.toString() });
-      });
-    }
+    // `update.changes`, not each transaction's own: an update can carry more
+    // than one transaction, and the second one's offsets are into the
+    // document the first one produced. Pushed into a single list they would
+    // travel as if they were all into the document the host still holds,
+    // which is the coordinate space `TextChange` promises. `update.changes`
+    // is exactly that list — every transaction in this update composed into
+    // one ChangeSet over `startState`'s document.
+    update.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
+      changes.push({ from: fromA, to: toA, insert: inserted.toString() });
+    });
     if (changes.length > 0) {
       postToExtension({ type: 'edit', changes });
     }
@@ -169,11 +174,22 @@ const clickHandler = EditorView.domEventHandlers({
     if (diagram) {
       const pos = view.posAtDOM(diagram);
       event.preventDefault();
-      // One position in, not the block's own start: the start is the fence
-      // line's first character, which `touchesBlock` counts as inside, but
-      // landing there means a Backspace deletes the paragraph above rather
-      // than anything in the block the Author just asked to open.
-      view.dispatch({ selection: { anchor: Math.min(pos + 1, view.state.doc.length) } });
+      // The start of the source's first line, not one character into the
+      // fence. Both are "inside" as far as `touchesBlock` is concerned, so
+      // both reveal the Diagram — but `pos + 1` put the caret between the
+      // first and second backtick of "```mermaid", which is a place no
+      // Author ever means to be: opening a picture to edit it means the
+      // source, and the source starts on the next line. (The block's own
+      // start is what neither can be: a Backspace there deletes the
+      // paragraph above rather than anything in the block just opened.)
+      //
+      // The picture carries no map back to the source — a node's place in a
+      // rendered graph is the renderer's arithmetic, not a position in the
+      // text — so where inside the plate the click landed cannot be honoured
+      // and is deliberately ignored. One predictable landing beats a guess.
+      const fence = view.state.doc.lineAt(pos);
+      const anchor = fence.number < view.state.doc.lines ? view.state.doc.line(fence.number + 1).from : Math.min(pos + 1, view.state.doc.length);
+      view.dispatch({ selection: { anchor } });
       view.focus();
       return true;
     }

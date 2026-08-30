@@ -9,6 +9,7 @@ import {
   requestSnapshot,
   setCursor,
   simulateTyping,
+  undoCommandsCanRun,
   waitFor,
   waitForText,
 } from './support';
@@ -52,7 +53,46 @@ suite('US-003 (009): a Table s source padded while the Author types', () => {
     await waitForText(fileUri, PADDED.replace('| Ana    |', '| Anas   |'));
   });
 
-  test('one undo reverts the keystroke and the padding it caused together', async () => {
+  // BR-001, asserted where it is actually decided rather than through the
+  // undo command: the keystroke and the padding it caused reach the Chapter
+  // as ONE change — one event, several ranges, one version — and one version
+  // is one undo step. This is what the `transactionFilter` in
+  // `tablePaddingPlugin.ts` exists to guarantee; a padding edit dispatched
+  // separately would show up here as a second event, and only afterwards as
+  // the half-padded Table a single undo would leave behind.
+  test('the keystroke and the padding it caused reach the Chapter as one change — one undo step', async () => {
+    fileUri = await createScratchFile(SLOPPY);
+    const panel = await openInWritingEditor(fileUri);
+    const document = await vscode.workspace.openTextDocument(fileUri);
+    const versionBefore = document.version;
+    const collected: vscode.TextDocumentContentChangeEvent[][] = [];
+    const subscription = vscode.workspace.onDidChangeTextDocument((event) => {
+      // Only events that actually changed something: VSCode also fires this
+      // with an empty `contentChanges` when a document's dirty state moves,
+      // and `WritingEditorProvider` ignores those for the same reason.
+      if (event.document.uri.toString() === fileUri.toString() && event.contentChanges.length > 0) {
+        collected.push([...event.contentChanges]);
+      }
+    });
+
+    const at = SLOPPY.indexOf('Ana') + 'Ana'.length;
+    try {
+      await setCursor(panel, at);
+      await simulateTyping(panel, [{ from: at, to: at, insert: 's' }]);
+      await waitForText(fileUri, PADDED.replace('| Ana    |', '| Anas   |'));
+    } finally {
+      subscription.dispose();
+    }
+
+    assert.strictEqual(collected.length, 1, `the keystroke and its padding should be one document change, not ${collected.length}`);
+    assert.strictEqual(document.version - versionBefore, 1, 'one document change should be one version, which is one undo step');
+    assert.ok(
+      collected[0].length > 1,
+      `that one change should carry the padding as well as the keystroke: ${JSON.stringify(collected[0].map((change) => change.text))}`
+    );
+  });
+
+  test('one undo reverts the keystroke and the padding it caused together', async function () {
     fileUri = await createScratchFile(SLOPPY);
     const panel = await openInWritingEditor(fileUri);
 
@@ -60,6 +100,14 @@ suite('US-003 (009): a Table s source padded while the Author types', () => {
     await setCursor(panel, at);
     await simulateTyping(panel, [{ from: at, to: at, insert: 's' }]);
     await waitForText(fileUri, PADDED.replace('| Ana    |', '| Anas   |'));
+
+    // The undo step itself is asserted by the test above, which needs no
+    // focus; this is the round trip through VSCode's own command, and it only
+    // reaches a Chapter through a really-focused editor.
+    if (!(await undoCommandsCanRun(panel))) {
+      console.log("    (skipped: VSCode's window is not frontmost, so undo cannot be routed to the Chapter — see undoCommandsCanRun)");
+      this.skip();
+    }
 
     await vscode.commands.executeCommand('undo');
 
